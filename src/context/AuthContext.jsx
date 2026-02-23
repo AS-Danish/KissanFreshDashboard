@@ -13,15 +13,9 @@ export const AuthProvider = ({ children }) => {
     const unsubscribe = listenToAuthChanges((firebaseUser) => {
       setUser(firebaseUser);
       setLoading(false);
-
-      if (firebaseUser) {
-        document.cookie = "auth=true; path=/";
-      } else {
-        document.cookie = "auth=; path=/; max-age=0";
-      }
     });
 
-    return () => unsubscribe();
+    return unsubscribe;
   }, []);
 
   return (

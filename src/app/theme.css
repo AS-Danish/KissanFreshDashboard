@@ -1,0 +1,114 @@
+/* Global Theme Configuration */
+:root {
+    /* Basic Variables */
+    --radius: 0.5rem;
+
+    /* Backgrounds & Foregrounds */
+    --background: oklch(0.985 0.005 240);
+    --foreground: oklch(0.2 0.05 240);
+    /* Navy text */
+    --card: oklch(1 0 0);
+    /* Pure White */
+    --card-foreground: oklch(0.2 0.05 240);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.2 0.05 240);
+
+    /* Primary - Navy Blue */
+    --primary: oklch(0.35 0.1 250);
+    --primary-foreground: oklch(0.98 0 0);
+    /* White */
+
+    /* Secondary - Bottle Green */
+    --secondary: oklch(0.45 0.1 160);
+    --secondary-foreground: oklch(0.98 0 0);
+
+    /* Muted */
+    --muted: oklch(0.95 0.02 240);
+    --muted-foreground: oklch(0.5 0.05 240);
+
+    /* Accent - Light Bottle Green */
+    --accent: oklch(0.92 0.04 160);
+    --accent-foreground: oklch(0.3 0.1 160);
+
+    /* Others */
+    --destructive: oklch(0.6 0.2 25);
+    --border: oklch(0.9 0.02 240);
+    --input: oklch(0.9 0.02 240);
+    --ring: oklch(0.35 0.1 250);
+    /* Navy Blue ring */
+
+    /* Chart Colors */
+    --chart-1: oklch(0.35 0.1 250);
+    /* Navy */
+    --chart-2: oklch(0.45 0.1 160);
+    /* Bottle Green */
+    --chart-3: oklch(0.398 0.07 227.392);
+    --chart-4: oklch(0.828 0.189 84.429);
+    --chart-5: oklch(0.769 0.188 70.08);
+
+    /* Sidebar Theme - Light Mode */
+    --sidebar: oklch(0.97 0.02 240);
+    /* Slightly tinted navy bg */
+    --sidebar-foreground: oklch(0.2 0.05 240);
+    --sidebar-primary: oklch(0.35 0.1 250);
+    --sidebar-primary-foreground: oklch(0.98 0 0);
+    --sidebar-accent: oklch(0.92 0.04 160);
+    /* Bottle Green accent on hover */
+    --sidebar-accent-foreground: oklch(0.3 0.1 160);
+    --sidebar-border: oklch(0.9 0.02 240);
+    --sidebar-ring: oklch(0.35 0.1 250);
+}
+
+.dark {
+    /* Backgrounds & Foregrounds */
+    --background: oklch(0.18 0.04 250);
+    /* Deep Navy Background */
+    --foreground: oklch(0.95 0.02 250);
+    /* Off-white tinted with navy */
+    --card: oklch(0.22 0.04 250);
+    /* Slightly lighter navy for cards */
+    --card-foreground: oklch(0.95 0.02 250);
+    --popover: oklch(0.22 0.04 250);
+    --popover-foreground: oklch(0.95 0.02 250);
+
+    /* Primary - Bright Navy/Blue */
+    --primary: oklch(0.65 0.15 250);
+    --primary-foreground: oklch(0.15 0.04 250);
+    /* Deep Navy text on primary */
+
+    /* Secondary - Vibrant Bottle Green */
+    --secondary: oklch(0.60 0.12 160);
+    --secondary-foreground: oklch(0.15 0.04 250);
+
+    /* Muted */
+    --muted: oklch(0.25 0.04 250);
+    --muted-foreground: oklch(0.7 0.04 250);
+
+    /* Accent - Dark Bottle Green */
+    --accent: oklch(0.28 0.06 160);
+    --accent-foreground: oklch(0.85 0.1 160);
+    /* Light green text */
+
+    /* Others */
+    --destructive: oklch(0.6 0.2 25);
+    --border: oklch(0.28 0.04 250);
+    --input: oklch(0.28 0.04 250);
+    --ring: oklch(0.65 0.15 250);
+
+    /* Chart Colors */
+    --chart-1: oklch(0.488 0.243 264.376);
+    --chart-2: oklch(0.696 0.17 162.48);
+    --chart-3: oklch(0.769 0.188 70.08);
+    --chart-4: oklch(0.627 0.265 303.9);
+    --chart-5: oklch(0.645 0.246 16.439);
+
+    /* Sidebar Theme - Dark Mode */
+    --sidebar: oklch(0.18 0.04 250);
+    --sidebar-foreground: oklch(0.95 0.02 250);
+    --sidebar-primary: oklch(0.65 0.15 250);
+    --sidebar-primary-foreground: oklch(0.15 0.04 250);
+    --sidebar-accent: oklch(0.25 0.04 250);
+    --sidebar-accent-foreground: oklch(0.95 0.02 250);
+    --sidebar-border: oklch(0.28 0.04 250);
+    --sidebar-ring: oklch(0.65 0.15 250);
+}

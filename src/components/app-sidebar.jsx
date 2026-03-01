@@ -47,22 +47,22 @@ const data = {
     },
     {
       title: "Product Management",
-      url: "/product-management",
+      url: "/dashboard/product-management",
       icon: IconFolder,
     },
     {
       title: "Stock Management",
-      url: "/stock-management",
+      url: "/dashboard/stock-management",
       icon: IconDatabase,
     },
     {
       title: "Order Management",
-      url: "/order-management",
+      url: "/dashboard/order-management",
       icon: IconListDetails,
     },
     {
       title: "User Management",
-      url: "/user-management",
+      url: "/dashboard/user-management",
       icon: IconUsers,
     },
   ],

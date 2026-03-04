@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import Image from "next/image"
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
+import { db } from "@/firebase/config"
+import { collection, onSnapshot, doc, deleteDoc } from "firebase/firestore"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import {
@@ -28,33 +30,38 @@ import {
 } from "@/components/ui/table"
 import { IconEdit, IconTrash, IconSearch, IconChevronLeft, IconChevronRight } from "@tabler/icons-react"
 
-const initialProducts = [
-    { id: "p1", name: "Organic Apples", category: "Fruits", description: "Fresh organic apples from local farms.", price: 4.99 },
-    { id: "p2", name: "Whole Wheat Bread", category: "Bakery", description: "Freshly baked whole wheat bread.", price: 3.49 },
-    { id: "p3", name: "Almond Milk", category: "Dairy", description: "Unsweetened almond milk, 1L.", price: 5.99 },
-    { id: "p4", name: "Free-Range Eggs", category: "Dairy", description: "A dozen free-range farm eggs.", price: 6.49 },
-    { id: "p5", name: "Chicken Breast", category: "Meat & Poultry", description: "Boneless, skinless chicken breast.", price: 12.99 },
-    { id: "p6", name: "Broccoli", category: "Vegetables", description: "Fresh green broccoli heads.", price: 2.29 },
-    { id: "p7", name: "Greek Yogurt", category: "Dairy", description: "Plain greek yogurt, 500g.", price: 4.49 },
-    { id: "p8", name: "Ground Beef", category: "Meat & Poultry", description: "Lean ground beef, 1 lb.", price: 8.99 },
-    { id: "p9", name: "Carrots", category: "Vegetables", description: "Organic carrots, 2 lbs.", price: 3.99 },
-    { id: "p10", name: "Bagels", category: "Bakery", description: "Pack of 6 plain bagels.", price: 4.99 },
-    { id: "p11", name: "Bananas", category: "Fruits", description: "Bunch of ripe bananas.", price: 1.99 },
-    { id: "p12", name: "Cheddar Cheese", category: "Dairy", description: "Aged sharp cheddar.", price: 7.99 }
-];
-
 const ITEMS_PER_PAGE = 5;
 
 export default function ProductManagement() {
-    const [products, setProducts] = useState(initialProducts);
+    const [products, setProducts] = useState([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [categoryFilter, setCategoryFilter] = useState("all");
     const [priceFilter, setPriceFilter] = useState("all");
     const [currentPage, setCurrentPage] = useState(1);
+    const [loading, setLoading] = useState(true);
 
-    const handleDelete = (id) => {
+    useEffect(() => {
+        const unsubscribe = onSnapshot(collection(db, "products"), (snapshot) => {
+            const productData = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            productData.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+            setProducts(productData);
+            setLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, []);
+
+    const handleDelete = async (id) => {
         if (window.confirm("Are you sure you want to delete this product?")) {
-            setProducts(products.filter(product => product.id !== id));
+            try {
+                await deleteDoc(doc(db, "products", id));
+            } catch (error) {
+                console.error("Error deleting document: ", error);
+                alert("Failed to delete product.");
+            }
         }
     };
 
@@ -68,9 +75,9 @@ export default function ProductManagement() {
 
             // Price Match
             let matchesPrice = true;
-            if (priceFilter === "under5") matchesPrice = product.price < 5;
-            else if (priceFilter === "5to10") matchesPrice = product.price >= 5 && product.price <= 10;
-            else if (priceFilter === "over10") matchesPrice = product.price > 10;
+            if (priceFilter === "under100") matchesPrice = product.price < 100;
+            else if (priceFilter === "100to500") matchesPrice = product.price >= 100 && product.price <= 500;
+            else if (priceFilter === "over500") matchesPrice = product.price > 500;
 
             return matchesSearch && matchesCategory && matchesPrice;
         });
@@ -134,9 +141,9 @@ export default function ProductManagement() {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">All Prices</SelectItem>
-                                    <SelectItem value="under5">Under $5</SelectItem>
-                                    <SelectItem value="5to10">$5 to $10</SelectItem>
-                                    <SelectItem value="over10">Over $10</SelectItem>
+                                    <SelectItem value="under100">Under ₹100</SelectItem>
+                                    <SelectItem value="100to500">₹100 to ₹500</SelectItem>
+                                    <SelectItem value="over500">Over ₹500</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -155,7 +162,13 @@ export default function ProductManagement() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {paginatedProducts.length === 0 ? (
+                                {loading ? (
+                                    <TableRow>
+                                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                                            Loading products...
+                                        </TableCell>
+                                    </TableRow>
+                                ) : paginatedProducts.length === 0 ? (
                                     <TableRow>
                                         <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                                             No products found matching your filters.
@@ -165,16 +178,29 @@ export default function ProductManagement() {
                                     paginatedProducts.map((product) => (
                                         <TableRow key={product.id}>
                                             <TableCell>
-                                                <div className="relative h-12 w-12 overflow-hidden rounded-md border">
-                                                    <div className="absolute inset-0 bg-muted flex items-center justify-center text-xs text-muted-foreground object-cover">
-                                                        Image
-                                                    </div>
+                                                <div className="relative h-12 w-12 overflow-hidden rounded-md border flex items-center justify-center bg-muted">
+                                                    {product.images && product.images.length > 0 ? (
+                                                        <Image
+                                                            src={product.images[0]}
+                                                            alt={product.name}
+                                                            fill
+                                                            className="object-cover"
+                                                        />
+                                                    ) : (
+                                                        <span className="text-[10px] text-muted-foreground w-full text-center">No Img</span>
+                                                    )}
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="font-medium">{product.name}</TableCell>
+                                            <TableCell className="font-medium">
+                                                <Link href={`/dashboard/product-management/${product.id}`} className="hover:underline text-primary">
+                                                    {product.name}
+                                                </Link>
+                                            </TableCell>
                                             <TableCell>{product.category}</TableCell>
-                                            <TableCell className="max-w-[200px] truncate" title={product.description}>{product.description}</TableCell>
-                                            <TableCell>${product.price.toFixed(2)}</TableCell>
+                                            <TableCell className="max-w-[200px] truncate" title={product.description}>
+                                                {product.description?.length > 50 ? `${product.description.substring(0, 50)}...` : product.description}
+                                            </TableCell>
+                                            <TableCell>₹{Number(product.price).toFixed(2)}</TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-2">
                                                     <Link href={`/dashboard/product-management/edit/${product.id}`}>

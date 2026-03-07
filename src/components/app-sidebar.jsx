@@ -49,6 +49,16 @@ const data = {
       title: "Product Management",
       url: "/dashboard/product-management",
       icon: IconFolder,
+      items: [
+        {
+          title: "Kissan Fresh Products",
+          url: "/dashboard/product-management/kissan-fresh",
+        },
+        {
+          title: "Home Food Products",
+          url: "/dashboard/product-management/home-food",
+        },
+      ]
     },
     {
       title: "Stock Management",

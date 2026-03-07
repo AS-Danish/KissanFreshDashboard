@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image"
+import { useParams } from "next/navigation";
 import { useState, useMemo, useEffect } from "react"
 import { db } from "@/firebase/config"
 import { collection, onSnapshot, doc, deleteDoc } from "firebase/firestore"
@@ -32,20 +33,44 @@ import { IconEdit, IconTrash, IconSearch, IconChevronLeft, IconChevronRight } fr
 
 const ITEMS_PER_PAGE = 5;
 
+const KISSAN_FRESH_CATEGORIES = ["Fruits", "Vegetables", "Dairy", "Bakery", "Meat & Poultry", "Grains"];
+const HOME_FOOD_CATEGORIES = ["Pickles", "Spices", "Snacks", "Sweets", "Staples", "Meals"];
+
+const KISSAN_FRESH_TAGS = ["100% Organic", "Fresh", "Pure", "Farm-to-table", "Locally Sourced", "Vegan", "Gluten-Free"];
+const HOME_FOOD_TAGS = ["Homemade", "Preservative-free", "Traditional", "Authentic", "Mom's Recipe", "Spicy", "Healthy"];
+
 export default function ProductManagement() {
+    const params = useParams();
+    const productType = params.productType; // "kissan-fresh" or "home-food"
+
+    const availableCategories = productType === 'home-food' ? HOME_FOOD_CATEGORIES : KISSAN_FRESH_CATEGORIES;
+    const availableTags = productType === 'home-food' ? HOME_FOOD_TAGS : KISSAN_FRESH_TAGS;
+
     const [products, setProducts] = useState([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [categoryFilter, setCategoryFilter] = useState("all");
     const [priceFilter, setPriceFilter] = useState("all");
+    const [tagFilter, setTagFilter] = useState("all");
     const [currentPage, setCurrentPage] = useState(1);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const unsubscribe = onSnapshot(collection(db, "products"), (snapshot) => {
-            const productData = snapshot.docs.map(doc => ({
+            let productData = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
+
+            // Filter to include only products matching the current type
+            productData = productData.filter(p => {
+                const origin = p.productOrigin || "kissan-fresh"; // default legacy products
+                if (productType === "home-food") {
+                    return origin === "home-food";
+                } else {
+                    return origin === "kissan-fresh";
+                }
+            });
+
             productData.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
             setProducts(productData);
             setLoading(false);
@@ -79,9 +104,12 @@ export default function ProductManagement() {
             else if (priceFilter === "100to500") matchesPrice = product.price >= 100 && product.price <= 500;
             else if (priceFilter === "over500") matchesPrice = product.price > 500;
 
-            return matchesSearch && matchesCategory && matchesPrice;
+            // Tag Match
+            const matchesTag = tagFilter === "all" || (product.tags && product.tags.includes(tagFilter));
+
+            return matchesSearch && matchesCategory && matchesPrice && matchesTag;
         });
-    }, [products, searchQuery, categoryFilter, priceFilter]);
+    }, [products, searchQuery, categoryFilter, priceFilter, tagFilter]);
 
     const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE) || 1;
     const paginatedProducts = filteredProducts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -89,7 +117,7 @@ export default function ProductManagement() {
     // Reset pagination when filters change
     useMemo(() => {
         setCurrentPage(1);
-    }, [searchQuery, categoryFilter, priceFilter]);
+    }, [searchQuery, categoryFilter, priceFilter, tagFilter]);
 
     return (
         <SidebarProvider
@@ -102,8 +130,10 @@ export default function ProductManagement() {
                 <SiteHeader />
                 <div className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <h2 className="text-2xl font-bold tracking-tight text-foreground">Product Management</h2>
-                        <Link href="/dashboard/product-management/new">
+                        <h2 className="text-2xl font-bold tracking-tight text-foreground">
+                            {productType === "home-food" ? "Home Food Products" : "Kissan Fresh Products"}
+                        </h2>
+                        <Link href={`/dashboard/product-management/${productType}/new`}>
                             <Button>Add New Product</Button>
                         </Link>
                     </div>
@@ -126,11 +156,22 @@ export default function ProductManagement() {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">All Categories</SelectItem>
-                                    <SelectItem value="fruits">Fruits</SelectItem>
-                                    <SelectItem value="vegetables">Vegetables</SelectItem>
-                                    <SelectItem value="dairy">Dairy</SelectItem>
-                                    <SelectItem value="bakery">Bakery</SelectItem>
-                                    <SelectItem value="meat & poultry">Meat & Poultry</SelectItem>
+                                    {availableCategories.map((cat) => (
+                                        <SelectItem key={cat} value={cat.toLowerCase()}>{cat}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="w-full md:w-1/4">
+                            <Select value={tagFilter} onValueChange={setTagFilter}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Tag" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Tags</SelectItem>
+                                    {availableTags.map((tag) => (
+                                        <SelectItem key={tag} value={tag}>{tag}</SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -192,7 +233,7 @@ export default function ProductManagement() {
                                                 </div>
                                             </TableCell>
                                             <TableCell className="font-medium">
-                                                <Link href={`/dashboard/product-management/${product.id}`} className="hover:underline text-primary">
+                                                <Link href={`/dashboard/product-management/${productType}/${product.id}`} className="hover:underline text-primary">
                                                     {product.name}
                                                 </Link>
                                             </TableCell>
@@ -203,7 +244,7 @@ export default function ProductManagement() {
                                             <TableCell>₹{Number(product.price).toFixed(2)}</TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-2">
-                                                    <Link href={`/dashboard/product-management/edit/${product.id}`}>
+                                                    <Link href={`/dashboard/product-management/${productType}/edit/${product.id}`}>
                                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary">
                                                             <IconEdit className="h-4 w-4" />
                                                             <span className="sr-only">Edit</span>

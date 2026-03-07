@@ -19,6 +19,7 @@ export default function ProductDetailPage() {
     const params = useParams();
     const router = useRouter();
     const productId = params.id;
+    const productType = params.productType;
 
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -34,7 +35,7 @@ export default function ProductDetailPage() {
                     setProduct({ id: docSnap.id, ...docSnap.data() });
                 } else {
                     alert("Product not found");
-                    router.push("/dashboard/product-management");
+                    router.push(`/dashboard/product-management/${productType}`);
                 }
             } catch (error) {
                 console.error("Error fetching product:", error);
@@ -50,7 +51,7 @@ export default function ProductDetailPage() {
             try {
                 await deleteDoc(doc(db, "products", productId));
                 alert("Product deleted successfully.");
-                router.push("/dashboard/product-management");
+                router.push(`/dashboard/product-management/${productType}`);
             } catch (error) {
                 console.error("Error deleting document: ", error);
                 alert("Failed to delete product.");
@@ -83,7 +84,7 @@ export default function ProductDetailPage() {
                 <div className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8 max-w-6xl mx-auto w-full">
                     <div className="flex items-center justify-between gap-4">
                         <div className="flex items-center gap-4">
-                            <Link href="/dashboard/product-management">
+                            <Link href={`/dashboard/product-management/${productType}`}>
                                 <Button variant="outline" size="icon">
                                     <IconArrowLeft className="h-4 w-4" />
                                     <span className="sr-only">Back</span>
@@ -95,7 +96,7 @@ export default function ProductDetailPage() {
                         </div>
                         {product && (
                             <div className="flex gap-2 border-l pl-4 border-muted">
-                                <Link href={`/dashboard/product-management/edit/${productId}`}>
+                                <Link href={`/dashboard/product-management/${productType}/edit/${productId}`}>
                                     <Button variant="outline" className="gap-2">
                                         <IconEdit className="h-4 w-4 text-primary" /> Edit
                                     </Button>

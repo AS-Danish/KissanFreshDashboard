@@ -93,6 +93,7 @@ export default function AddNewProduct() {
                 tags,
                 images: imageUrls,
                 inStock,
+                stockCount: 0,
                 productOrigin: productType === 'home-food' ? 'home-food' : 'kissan-fresh',
                 createdAt: new Date().toISOString()
             });

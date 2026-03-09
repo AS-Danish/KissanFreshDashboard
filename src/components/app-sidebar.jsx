@@ -64,6 +64,16 @@ const data = {
       title: "Stock Management",
       url: "/dashboard/stock-management",
       icon: IconDatabase,
+      items: [
+        {
+          title: "Kissan Fresh Stock",
+          url: "/dashboard/stock-management/kissan-fresh",
+        },
+        {
+          title: "Home Food Stock",
+          url: "/dashboard/stock-management/home-food",
+        },
+      ]
     },
     {
       title: "Order Management",

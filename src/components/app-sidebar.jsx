@@ -58,6 +58,10 @@ const data = {
           title: "Home Food Products",
           url: "/dashboard/product-management/home-food",
         },
+        {
+          title: "Today's Special",
+          url: "/dashboard/product-management/todays-special",
+        },
       ]
     },
     {

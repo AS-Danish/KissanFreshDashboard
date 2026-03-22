@@ -85,6 +85,11 @@ const data = {
       icon: IconListDetails,
     },
     {
+      title: "Rider Management",
+      url: "/dashboard/rider-management",
+      icon: IconUsers,
+    },
+    {
       title: "User Management",
       url: "/dashboard/user-management",
       icon: IconUsers,

@@ -1,0 +1,598 @@
+"use client"
+
+import { useState, useMemo, useEffect } from "react"
+import { db } from "@/firebase/config"
+import { collection, onSnapshot, query, orderBy, getDocs } from "firebase/firestore"
+import { AppSidebar } from "@/components/app-sidebar"
+import { SiteHeader } from "@/components/site-header"
+import {
+    SidebarInset,
+    SidebarProvider,
+} from "@/components/ui/sidebar"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table"
+import { Label } from "@/components/ui/label"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent } from "@/components/ui/card"
+import { Switch } from "@/components/ui/switch"
+import { 
+    IconSearch, 
+    IconCalendarTime,
+    IconLock, 
+    IconLockOpen,
+    IconRefresh,
+    IconUsers,
+    IconCheck,
+    IconX,
+    IconPlus,
+    IconTrash
+} from "@tabler/icons-react"
+import { toast } from "sonner"
+import { 
+    createSlotsBulk, 
+    toggleSlotActive, 
+    lockSlot, 
+    unlockSlot, 
+    assignRiderToSlot, 
+    removeRiderFromSlot 
+} from "@/services/slotService"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+
+const ITEMS_PER_PAGE = 15;
+
+export default function SlotsManagement() {
+    const [slots, setSlots] = useState([]);
+    const [allRiders, setAllRiders] = useState([]);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [dateFilter, setDateFilter] = useState(""); // YYYY-MM-DD
+    const [loading, setLoading] = useState(true);
+
+    // Dialogs state
+    const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
+    const [isManageRidersOpen, setIsManageRidersOpen] = useState(false);
+
+    const [generateData, setGenerateData] = useState({
+        startDate: new Date().toISOString().split('T')[0],
+        days: 7,
+        startHour: 9,
+        endHour: 18
+    });
+
+    const [selectedSlot, setSelectedSlot] = useState(null);
+    const [slotRiders, setSlotRiders] = useState([]);
+    const [availableRiders, setAvailableRiders] = useState([]); // Riders not in the slot
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [loadingRiders, setLoadingRiders] = useState(false);
+    
+    // Track ID of rider currently being assigned/removed for loading state
+    const [processingRiderId, setProcessingRiderId] = useState(null);
+
+    // Fetch Slots
+    useEffect(() => {
+        const slotsRef = collection(db, "slots");
+        const q = query(slotsRef, orderBy("startTime", "asc"));
+        
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const slotsData = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            setSlots(slotsData);
+            setLoading(false);
+        }, (error) => {
+            console.error("Error fetching slots:", error);
+            setLoading(false);
+        });
+
+        // Set default date filter to today
+        setDateFilter(new Date().toISOString().split('T')[0]);
+
+        return () => unsubscribe();
+    }, []);
+
+    // Fetch All Riders (for the management modal)
+    useEffect(() => {
+        const fetchAllRiders = async () => {
+            try {
+                const ridersSnap = await getDocs(collection(db, "riders"));
+                setAllRiders(ridersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            } catch (err) {
+                console.error("Failed to load riders list", err);
+            }
+        }
+        fetchAllRiders();
+    }, []);
+
+    const filteredSlots = useMemo(() => {
+        return slots.filter((slot) => {
+            const matchesSearch = slot.id.toLowerCase().includes(searchQuery.toLowerCase());
+            
+            // Format Timestamp to date string
+            let slotDate = "";
+            if (slot.startTime) {
+               slotDate = new Date(slot.startTime.seconds * 1000).toISOString().split('T')[0];
+            }
+            const matchesDate = !dateFilter || slotDate === dateFilter;
+            
+            return matchesSearch && matchesDate;
+        });
+    }, [slots, searchQuery, dateFilter]);
+
+    const handleGenerateChange = (e) => {
+        const { name, value } = e.target;
+        setGenerateData(prev => ({ 
+            ...prev, 
+            [name]: name === 'startDate' ? value : parseInt(value) || 0 
+        }));
+    };
+
+    const handleGenerateSlots = async (e) => {
+        e.preventDefault();
+        setIsSubmitting(true);
+        try {
+            const start = new Date(generateData.startDate);
+            await createSlotsBulk(start, generateData.days, generateData.startHour, generateData.endHour);
+            toast.success("Slots generated successfully!");
+            setIsGenerateModalOpen(false);
+        } catch (error) {
+            console.error("Failed to generate slots:", error);
+            toast.error("Failed to generate slots.");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleToggleActive = async (slotId, currentStatus) => {
+        try {
+            await toggleSlotActive(slotId, !currentStatus);
+            toast.success(`Slot ${!currentStatus ? 'activated' : 'deactivated'}.`);
+        } catch (error) {
+            toast.error("Failed to toggle status.");
+        }
+    };
+
+    const handleToggleLock = async (slotId, currentLock) => {
+        try {
+            if (currentLock) {
+                await unlockSlot(slotId);
+                toast.success("Slot unlocked.");
+            } else {
+                await lockSlot(slotId);
+                toast.success("Slot locked.");
+            }
+        } catch (error) {
+            toast.error("Failed to toggle lock.");
+        }
+    };
+
+    // Manage Riders Modal functions
+    const openManageRiders = (slot) => {
+        setSelectedSlot(slot);
+        setIsManageRidersOpen(true);
+    };
+
+    useEffect(() => {
+        if (!selectedSlot || !isManageRidersOpen) return;
+
+        setLoadingRiders(true);
+        const ridersRef = collection(db, `slots/${selectedSlot.id}/riders`);
+        
+        const unsubscribe = onSnapshot(ridersRef, (snapshot) => {
+            const currentRiders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setSlotRiders(currentRiders);
+            
+            // Calculate available riders (all minus current)
+            const currentRiderIds = currentRiders.map(r => r.id);
+            const aRiders = allRiders.filter(r => !currentRiderIds.includes(r.id));
+            setAvailableRiders(aRiders);
+            
+            setLoadingRiders(false);
+        });
+
+        return () => unsubscribe();
+    }, [selectedSlot, isManageRidersOpen, allRiders]);
+
+    const handleAssignRider = async (riderId) => {
+        setProcessingRiderId(riderId);
+        try {
+            await assignRiderToSlot(selectedSlot.id, riderId);
+            toast.success("Rider assigned to slot.");
+        } catch (error) {
+            toast.error(error.message || "Failed to assign rider.");
+        } finally {
+            setProcessingRiderId(null);
+        }
+    };
+
+    const handleRemoveRider = async (riderId) => {
+        setProcessingRiderId(riderId);
+        try {
+            await removeRiderFromSlot(selectedSlot.id, riderId);
+            toast.success("Rider removed from slot.");
+        } catch (error) {
+            toast.error(error.message || "Failed to remove rider.");
+        } finally {
+            setProcessingRiderId(null);
+        }
+    };
+
+
+    const formatTime = (timestamp) => {
+        if (!timestamp) return "";
+        const date = new Date(timestamp.seconds * 1000);
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
+    return (
+        <SidebarProvider
+            style={{
+                "--sidebar-width": "calc(var(--spacing) * 72)",
+                "--header-height": "calc(var(--spacing) * 12)"
+            }}>
+            <AppSidebar variant="inset" />
+            <SidebarInset className="bg-background">
+                <SiteHeader />
+                <div className="flex flex-1 flex-col gap-8 p-6 md:p-10">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <h2 className="text-2xl font-bold tracking-tight text-foreground uppercase">
+                            Slot Management
+                        </h2>
+                        
+                        <Dialog open={isGenerateModalOpen} onOpenChange={setIsGenerateModalOpen}>
+                            <DialogTrigger asChild>
+                                <Button className="h-10 px-4 font-medium transition-all shadow-sm">
+                                    <IconCalendarTime className="mr-2 h-4 w-4" />
+                                    Generate Slots
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-[450px]">
+                                <DialogHeader>
+                                    <DialogTitle>Bulk Generate Slots</DialogTitle>
+                                    <DialogDescription className="text-xs">
+                                        This will automatically create 1-hour slots (e.g., 9-10, 10-11) for the duration of the operational hours you set below.
+                                        You can generate them for a single day or multiple days at once.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <form onSubmit={handleGenerateSlots} className="space-y-4 py-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="startDate">Starting Date</Label>
+                                        <Input id="startDate" name="startDate" type="date" value={generateData.startDate} onChange={handleGenerateChange} required />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="days">Generate for how many days?</Label>
+                                        <Input id="days" name="days" type="number" min="1" max="30" value={generateData.days} onChange={handleGenerateChange} required />
+                                        <p className="text-[10px] text-muted-foreground">e.g., 1 for only the selected date, 7 for a whole week.</p>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4 pt-2">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="startHour">Operation Start (Hour)</Label>
+                                            <Input id="startHour" name="startHour" type="number" min="0" max="23" value={generateData.startHour} onChange={handleGenerateChange} required />
+                                            <p className="text-[10px] text-muted-foreground">e.g., 9 for 9 AM</p>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="endHour">Operation End (Hour)</Label>
+                                            <Input id="endHour" name="endHour" type="number" min="1" max="24" value={generateData.endHour} onChange={handleGenerateChange} required />
+                                            <p className="text-[10px] text-muted-foreground">e.g., 18 for 6 PM</p>
+                                        </div>
+                                    </div>
+                                    <DialogFooter className="mt-4">
+                                        <Button type="button" variant="outline" onClick={() => setIsGenerateModalOpen(false)}>Cancel</Button>
+                                        <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Generating...' : 'Generate'}</Button>
+                                    </DialogFooter>
+                                </form>
+                            </DialogContent>
+                        </Dialog>
+                    </div>
+
+                    {/* Stats Overview */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <Card className="rounded-xl border shadow-sm">
+                            <CardContent className="p-6 flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Slots (Filtered)</p>
+                                    <h3 className="text-2xl font-bold text-foreground">{filteredSlots.length}</h3>
+                                </div>
+                                <div className="h-10 w-10 bg-primary/10 text-primary rounded-lg flex items-center justify-center">
+                                    <IconCalendarTime className="h-6 w-6" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card className="rounded-xl border shadow-sm">
+                            <CardContent className="p-6 flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Active Slots</p>
+                                    <h3 className="text-2xl font-bold text-foreground">{filteredSlots.filter(s => s.isActive).length}</h3>
+                                </div>
+                                <div className="h-10 w-10 bg-emerald-500/10 text-emerald-600 rounded-lg flex items-center justify-center">
+                                    <IconCheck className="h-6 w-6" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card className="rounded-xl border shadow-sm">
+                            <CardContent className="p-6 flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Locked Slots</p>
+                                    <h3 className="text-2xl font-bold text-foreground">{filteredSlots.filter(s => s.isLocked).length}</h3>
+                                </div>
+                                <div className="h-10 w-10 bg-orange-500/10 text-orange-600 rounded-lg flex items-center justify-center">
+                                    <IconLock className="h-6 w-6" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card className="rounded-xl border shadow-sm">
+                            <CardContent className="p-6 flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Capacity (Filtered)</p>
+                                    <h3 className="text-2xl font-bold text-foreground">{filteredSlots.reduce((acc, curr) => acc + (curr.capacity || 0), 0)}</h3>
+                                </div>
+                                <div className="h-10 w-10 bg-purple-500/10 text-purple-600 rounded-lg flex items-center justify-center">
+                                    <IconUsers className="h-6 w-6" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    <div className="flex flex-col gap-6">
+                        <div className="flex flex-col md:flex-row gap-4 items-center mb-4">
+                            <div className="relative w-full md:w-1/2">
+                                <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/70" />
+                                <Input
+                                    type="search"
+                                    placeholder="Search by Slot ID..."
+                                    className="w-full pl-10 h-12 bg-background border-border/50 shadow-sm"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                            </div>
+                            <div className="w-full md:w-1/4">
+                               <Input
+                                    type="date"
+                                    className="h-12 bg-background border-border/50 shadow-sm"
+                                    value={dateFilter}
+                                    onChange={(e) => setDateFilter(e.target.value)}
+                                />
+                            </div>
+                            <div className="w-full md:w-1/4">
+                                <Button 
+                                    variant="outline" 
+                                    className="h-12 w-full" 
+                                    onClick={() => {setSearchQuery(""); setDateFilter("")}}
+                                >
+                                    Clear Filters
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
+                            <Table>
+                                <TableHeader className="bg-muted/50">
+                                    <TableRow>
+                                        <TableHead className="font-semibold text-foreground px-6 py-4">Slot Time</TableHead>
+                                        <TableHead className="font-semibold text-foreground text-center">Status</TableHead>
+                                        <TableHead className="font-semibold text-foreground text-center">Lock Status</TableHead>
+                                        <TableHead className="font-semibold text-foreground text-center">Capacity (Used/Total)</TableHead>
+                                        <TableHead className="font-semibold text-foreground text-center">Riders</TableHead>
+                                        <TableHead className="text-right font-semibold text-foreground px-6">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {loading ? (
+                                        <TableRow>
+                                            <TableCell colSpan={6} className="text-center py-32">
+                                                <div className="flex flex-col items-center gap-4">
+                                                    <div className="h-16 w-16 bg-primary/10 rounded-3xl flex items-center justify-center animate-pulse">
+                                                        <IconRefresh className="h-8 w-8 text-primary animate-spin" />
+                                                    </div>
+                                                    <span className="text-xs font-black tracking-[0.2em] text-primary uppercase">Loading Slots...</span>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : filteredSlots.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={6} className="text-center py-32">
+                                                <div className="flex flex-col items-center gap-6">
+                                                    <div className="h-24 w-24 bg-muted/50 rounded-[2rem] flex items-center justify-center border-2 border-dashed border-border">
+                                                        <IconCalendarTime className="h-10 w-10 text-muted-foreground/30" />
+                                                    </div>
+                                                    <div className="text-center space-y-2">
+                                                        <p className="text-xl font-black uppercase text-primary tracking-tight">No Slots Found</p>
+                                                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">Adjust your filters or generate new slots.</p>
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        filteredSlots.map((slot) => (
+                                            <TableRow 
+                                                key={slot.id} 
+                                                className="group hover:bg-primary/[0.01] transition-all border-b last:border-0"
+                                            >
+                                                <TableCell className="px-6 py-4">
+                                                    <div className="flex flex-col">
+                                                        <span className="font-bold text-sm">{formatTime(slot.startTime)} - {formatTime(slot.endTime)}</span>
+                                                        <span className="text-[10px] text-muted-foreground uppercase font-mono tracking-tighter opacity-80">{slot.id}</span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="text-center">
+                                                    <div className="flex flex-col items-center gap-1.5">
+                                                        <Switch 
+                                                            checked={slot.isActive} 
+                                                            onCheckedChange={() => handleToggleActive(slot.id, slot.isActive)}
+                                                        />
+                                                        <span className="text-[10px] uppercase font-bold text-muted-foreground">
+                                                            {slot.isActive ? 'Active' : 'Inactive'}
+                                                        </span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="text-center">
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="sm" 
+                                                        onClick={() => handleToggleLock(slot.id, slot.isLocked)}
+                                                        className={`h-8 px-2 rounded-lg ${slot.isLocked ? 'text-orange-600 bg-orange-50 hover:bg-orange-100 dark:bg-orange-900/20' : 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/20'}`}
+                                                    >
+                                                        {slot.isLocked ? <IconLock className="h-4 w-4 mr-1" /> : <IconLockOpen className="h-4 w-4 mr-1" />}
+                                                        <span className="text-[10px] font-bold uppercase">{slot.isLocked ? 'Locked' : 'Unlocked'}</span>
+                                                    </Button>
+                                                </TableCell>
+                                                <TableCell className="text-center">
+                                                    <div className="flex flex-col items-center">
+                                                        <span className="font-bold text-sm">
+                                                            <span className={slot.assignedOrders >= slot.capacity && slot.capacity > 0 ? 'text-destructive' : 'text-primary'}>
+                                                                {slot.assignedOrders || 0}
+                                                            </span>
+                                                            <span className="text-muted-foreground mx-1">/</span>
+                                                            {slot.capacity || 0}
+                                                        </span>
+                                                        <div className="w-24 h-1.5 bg-muted rounded-full mt-1.5 overflow-hidden">
+                                                            <div 
+                                                                className={`h-full rounded-full ${slot.assignedOrders >= slot.capacity && slot.capacity > 0 ? 'bg-destructive' : 'bg-primary'}`}
+                                                                style={{ width: `${slot.capacity > 0 ? Math.min(100, ((slot.assignedOrders || 0) / slot.capacity) * 100) : 0}%` }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="text-center">
+                                                    <Badge variant="secondary" className="font-mono">{slot.capacity ? slot.capacity / 6 : 0} Riders</Badge>
+                                                </TableCell>
+                                                <TableCell className="text-right px-6">
+                                                   <Button size="sm" variant="outline" onClick={() => openManageRiders(slot)} className="text-xs font-semibold">
+                                                        <IconUsers className="h-4 w-4 mr-2" />
+                                                        Manage
+                                                   </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </div>
+
+                    {/* Manage Riders Dialog */}
+                    <Dialog open={isManageRidersOpen} onOpenChange={setIsManageRidersOpen}>
+                        <DialogContent className="sm:max-w-[700px] gap-0 p-0 overflow-hidden rounded-[2rem]">
+                            <div className="flex flex-col h-[80vh] max-h-[800px]">
+                                <DialogHeader className="p-6 border-b bg-muted/30">
+                                    <DialogTitle className="text-xl flex items-center gap-2">
+                                        <IconUsers className="h-6 w-6 text-primary" />
+                                        Manage Riders for Slot
+                                    </DialogTitle>
+                                    <DialogDescription className="text-sm font-medium">
+                                        Slot: <span className="text-foreground font-mono">{selectedSlot?.id}</span> ({formatTime(selectedSlot?.startTime)} - {formatTime(selectedSlot?.endTime)})
+                                    </DialogDescription>
+                                </DialogHeader>
+                                
+                                <div className="flex-1 overflow-y-auto p-6 bg-background space-y-6">
+                                    {/* Current Assigned Riders */}
+                                    <div>
+                                        <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Assigned Riders ({slotRiders.length})</h3>
+                                        {loadingRiders ? (
+                                            <div className="flex justify-center py-8"><IconRefresh className="animate-spin text-primary" /></div>
+                                        ) : slotRiders.length === 0 ? (
+                                            <div className="text-center py-8 bg-muted/30 rounded-xl border border-dashed border-border/50">
+                                                <p className="text-sm text-muted-foreground font-medium">No riders assigned to this slot yet.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                {slotRiders.map(riderRef => {
+                                                    // Find full rider details from allRiders
+                                                    const riderParams = allRiders.find(r => r.id === riderRef.id) || riderRef;
+                                                    return (
+                                                    <div key={riderRef.id} className="flex items-center justify-between p-3 rounded-xl border bg-card shadow-sm">
+                                                        <div className="flex items-center gap-3">
+                                                             <Avatar className="h-8 w-8">
+                                                                <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${riderParams.name}`} />
+                                                                <AvatarFallback>{riderParams.name?.substring(0, 2) || 'RI'}</AvatarFallback>
+                                                            </Avatar>
+                                                            <div className="flex flex-col">
+                                                                <span className="font-semibold text-sm">{riderParams.name || 'Unknown Rider'}</span>
+                                                                <span className="text-[10px] text-muted-foreground">Orders: {riderRef.assignedOrders || 0} / 6</span>
+                                                            </div>
+                                                        </div>
+                                                        <Button 
+                                                            variant="ghost" 
+                                                            size="icon"
+                                                            onClick={() => handleRemoveRider(riderRef.id)}
+                                                            disabled={processingRiderId === riderRef.id}
+                                                            className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
+                                                        >
+                                                            {processingRiderId === riderRef.id ? <IconRefresh className="h-4 w-4 animate-spin" /> : <IconTrash className="h-4 w-4" />}
+                                                        </Button>
+                                                    </div>
+                                                )})}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <hr className="border-border/50" />
+
+                                    {/* Available to Assign */}
+                                    <div>
+                                        <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Available Riders</h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            {availableRiders.length === 0 ? (
+                                                <p className="text-sm text-muted-foreground col-span-2">No other riders available to assign.</p>
+                                            ) : (
+                                                availableRiders.map(rider => (
+                                                    <div key={rider.id} className="flex items-center justify-between p-3 rounded-xl border border-border/50 hover:border-primary/50 bg-background transition-colors">
+                                                        <div className="flex items-center gap-3">
+                                                            <Avatar className="h-8 w-8">
+                                                                <AvatarImage src={rider.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${rider.name}`} />
+                                                                <AvatarFallback>{rider.name?.substring(0, 2) || 'RI'}</AvatarFallback>
+                                                            </Avatar>
+                                                            <div className="flex flex-col">
+                                                                <span className="font-semibold text-sm">{rider.name}</span>
+                                                                <span className="text-[10px] text-muted-foreground font-mono">{rider.phone || rider.riderId || rider.id}</span>
+                                                            </div>
+                                                        </div>
+                                                        <Button 
+                                                            variant="secondary" 
+                                                            size="sm"
+                                                            onClick={() => handleAssignRider(rider.id)}
+                                                            className="h-8 rounded-lg font-bold text-xs min-w-[80px]"
+                                                            disabled={selectedSlot?.isLocked || processingRiderId === rider.id}
+                                                        >
+                                                            {processingRiderId === rider.id ? (
+                                                                <IconRefresh className="h-3 w-3 animate-spin py-0" />
+                                                            ) : (
+                                                                <>
+                                                                    <IconPlus className="h-3 w-3 mr-1" /> Assign
+                                                                </>
+                                                            )}
+                                                        </Button>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="p-4 border-t bg-muted/20 flex justify-end">
+                                    <Button onClick={() => setIsManageRidersOpen(false)} variant="outline">Done</Button>
+                                </div>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+
+                </div>
+            </SidebarInset>
+        </SidebarProvider>
+    );
+}

@@ -17,6 +17,7 @@ import {
   IconSearch,
   IconSettings,
   IconUsers,
+  IconCalendarTime,
 } from "@tabler/icons-react"
 
 import { NavDocuments } from "@/components/nav-documents"
@@ -93,6 +94,11 @@ const data = {
       title: "User Management",
       url: "/dashboard/user-management",
       icon: IconUsers,
+    },
+    {
+      title: "Slot Management",
+      url: "/dashboard/slots-management",
+      icon: IconCalendarTime,
     },
   ],
   navClouds: [

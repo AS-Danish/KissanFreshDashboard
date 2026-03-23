@@ -41,7 +41,9 @@ import {
     IconRefresh,
     IconClipboard,
     IconClipboardCheck,
-    IconCoin
+    IconCoin,
+    IconCalendar,
+    IconClock
 } from "@tabler/icons-react"
 import { OrderDetailsSheet } from "@/components/order-details-sheet"
 import { toast } from "sonner"
@@ -56,12 +58,36 @@ import {
 
 const ITEMS_PER_PAGE = 10;
 
+function formatSlotDisplay(slotId) {
+    if (!slotId) return { date: "No Slot", time: "Unassigned" };
+    try {
+        const [datePart, hourPart] = slotId.split('_');
+        const [year, month, day] = datePart.split('-');
+        const hourObj = parseInt(hourPart, 10);
+        const ampmStart = hourObj >= 12 ? 'PM' : 'AM';
+        const startH = hourObj % 12 || 12;
+        const nextHourObj = hourObj + 1;
+        const ampmEnd = nextHourObj >= 12 && nextHourObj < 24 ? 'PM' : 'AM';
+        const endH = nextHourObj % 12 || 12;
+        return {
+            date: `${day}-${month}-${year}`,
+            time: `${startH}:00 ${ampmStart} - ${endH}:00 ${ampmEnd}`
+        }
+    } catch {
+        return { date: slotId, time: "" }
+    }
+}
+
 const getStatusColor = (status) => {
     switch (status?.toUpperCase()) {
+        case "ASSIGNED":
+            return "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-400 dark:border-indigo-800"
         case "PROCESSING":
-            return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400"
+            return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800"
+        case "OUT FOR DELIVERY":
+            return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800"
         case "SHIPPED":
-            return "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-400"
+            return "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800"
         case "DELIVERED":
             return "bg-secondary/10 text-secondary border-secondary/20 dark:bg-secondary/20 dark:text-secondary-foreground"
         case "CANCELLED":
@@ -73,8 +99,12 @@ const getStatusColor = (status) => {
 
 const getStatusIcon = (status) => {
     switch (status?.toUpperCase()) {
+        case "ASSIGNED":
+            return <IconCheck className="h-3.5 w-3.5" />
         case "PROCESSING":
             return <IconPackage className="h-3.5 w-3.5" />
+        case "OUT FOR DELIVERY":
+            return <IconTruck className="h-3.5 w-3.5" />
         case "SHIPPED":
             return <IconTruck className="h-3.5 w-3.5" />
         case "DELIVERED":
@@ -94,13 +124,26 @@ export default function OrderManagement() {
     const [loading, setLoading] = useState(true);
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
-    const [copiedId, setCopiedId] = useState(null);
+    const [ridersMap, setRidersMap] = useState({});
 
     useEffect(() => {
+        const ridersRef = collection(db, "riders");
+        const unsubscribeRiders = onSnapshot(ridersRef, (snapshot) => {
+            const map = {};
+            snapshot.docs.forEach(doc => {
+                map[doc.id] = doc.data().name;
+                if(doc.data().riderId) { // Fallback for alternative IDs
+                    map[doc.data().riderId] = doc.data().name;
+                }
+            });
+            setRidersMap(map);
+        });
+
         const ordersRef = collection(db, "orders");
+
         const q = query(ordersRef, orderBy("orderDate", "desc"));
         
-        const unsubscribe = onSnapshot(q, (snapshot) => {
+        const unsubscribeOrders = onSnapshot(q, (snapshot) => {
             const ordersData = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
@@ -109,7 +152,10 @@ export default function OrderManagement() {
             setLoading(false);
         });
 
-        return () => unsubscribe();
+        return () => {
+            unsubscribeOrders();
+            unsubscribeRiders();
+        };
     }, []);
 
     const filteredOrders = useMemo(() => {
@@ -258,6 +304,7 @@ export default function OrderManagement() {
                                         <TableHead className="font-semibold text-foreground px-6 py-4">Order ID</TableHead>
                                         <TableHead className="font-semibold text-foreground">Date & Time</TableHead>
                                         <TableHead className="font-semibold text-foreground">Customer</TableHead>
+                                        <TableHead className="font-semibold text-foreground">Assignment</TableHead>
                                         <TableHead className="font-semibold text-foreground">Amount</TableHead>
                                         <TableHead className="font-semibold text-foreground text-center">Status</TableHead>
                                         <TableHead className="text-right font-semibold text-foreground px-6">Actions</TableHead>
@@ -323,6 +370,32 @@ export default function OrderManagement() {
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
+                                                    <div className="flex flex-col">
+                                                        {order.slotId ? (
+                                                            <div className="flex flex-col gap-0.5 mb-1">
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <IconCalendar className="h-3.5 w-3.5 text-primary" />
+                                                                    <span className="text-xs font-semibold whitespace-nowrap text-primary">{formatSlotDisplay(order.slotId).date}</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <IconClock className="h-3.5 w-3.5 text-muted-foreground" />
+                                                                    <span className="text-[10px] font-medium text-muted-foreground whitespace-nowrap">{formatSlotDisplay(order.slotId).time}</span>
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-[10px] text-muted-foreground uppercase opacity-60">No Slot</span>
+                                                        )}
+                                                        {order.riderId ? (
+                                                            <div className="flex items-center gap-1.5 mt-0.5">
+                                                                <IconTruck className="h-3.5 w-3.5 text-blue-600" />
+                                                                <span className="text-xs font-medium text-blue-700 dark:text-blue-400 max-w-[100px] truncate">{ridersMap[order.riderId] || 'Unknown Rider'}</span>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-[10px] text-muted-foreground uppercase opacity-60">Unassigned</span>
+                                                        )}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
                                                     <span className="font-bold text-sm text-primary tracking-tight">₹{Number(order.totalAmount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
                                                 </TableCell>
                                                 <TableCell className="text-center">
@@ -332,13 +405,43 @@ export default function OrderManagement() {
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="text-right px-6">
-                                                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        {order.status?.toUpperCase() === 'ASSIGNED' && (
+                                                            <Button 
+                                                                size="sm" 
+                                                                className="h-9 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-4 text-[11px] uppercase font-black tracking-widest shadow-lg shadow-indigo-600/20 active:scale-95 transition-all"
+                                                                onClick={(e) => handleQuickStatusUpdate(e, order.id, 'OUT FOR DELIVERY')}
+                                                            >
+                                                                <IconTruck className="h-4 w-4 mr-2" />
+                                                                Dispatch
+                                                            </Button>
+                                                        )}
+                                                        {order.status?.toUpperCase() === 'OUT FOR DELIVERY' && (
+                                                            <Button 
+                                                                size="sm" 
+                                                                className="h-9 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-4 text-[11px] uppercase font-black tracking-widest shadow-lg shadow-emerald-600/20 active:scale-95 transition-all"
+                                                                onClick={(e) => handleQuickStatusUpdate(e, order.id, 'DELIVERED')}
+                                                            >
+                                                                <IconCheck className="h-4 w-4 mr-2" />
+                                                                Delivered
+                                                            </Button>
+                                                        )}
+                                                        {(order.status?.toUpperCase() !== 'ASSIGNED' && order.status?.toUpperCase() !== 'OUT FOR DELIVERY' && order.status?.toUpperCase() !== 'DELIVERED') && (
+                                                            <Button 
+                                                                size="sm" 
+                                                                variant="default"
+                                                                className="h-9 rounded-xl px-4 text-[11px] uppercase font-black tracking-widest shadow-lg active:scale-95 transition-all"
+                                                                onClick={(e) => { e.stopPropagation(); handleViewDetails(order); }}
+                                                            >
+                                                                Process Order
+                                                            </Button>
+                                                        )}
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
                                                                 <Button
                                                                     variant="outline"
                                                                     size="icon"
-                                                                    className="h-10 w-10 border-2 rounded-xl text-primary hover:bg-primary/5 hover:border-primary/20 transition-all shadow-sm"
+                                                                    className="h-8 w-8 border-2 rounded-xl text-primary hover:bg-primary/5 hover:border-primary/20 transition-all shadow-sm"
                                                                     onClick={(e) => e.stopPropagation()}
                                                                 >
                                                                     <IconRefresh className="h-4 w-4" />
@@ -352,6 +455,12 @@ export default function OrderManagement() {
                                                                         <IconPackage className="h-4 w-4 text-blue-600" />
                                                                     </div>
                                                                     Processing
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={(e) => handleQuickStatusUpdate(e, order.id, 'OUT FOR DELIVERY')} className="rounded-xl flex items-center gap-3 py-3 font-bold text-xs uppercase tracking-tight focus:bg-amber-50 focus:text-amber-700 dark:focus:bg-amber-900/20">
+                                                                    <div className="h-8 w-8 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center">
+                                                                        <IconTruck className="h-4 w-4 text-amber-600" />
+                                                                    </div>
+                                                                    Out for Delivery
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem onClick={(e) => handleQuickStatusUpdate(e, order.id, 'SHIPPED')} className="rounded-xl flex items-center gap-3 py-3 font-bold text-xs uppercase tracking-tight focus:bg-purple-50 focus:text-purple-700 dark:focus:bg-purple-900/20">
                                                                     <div className="h-8 w-8 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
@@ -436,6 +545,7 @@ export default function OrderManagement() {
                     order={selectedOrder} 
                     open={isSheetOpen} 
                     onOpenChange={setIsSheetOpen} 
+                    ridersMap={ridersMap}
                 />
             </SidebarInset>
         </SidebarProvider>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
     Sheet,
     SheetContent,
@@ -28,15 +28,21 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { db } from "@/firebase/config"
-import { doc, updateDoc } from "firebase/firestore"
-import { IconPackage, IconTruck, IconCheck, IconX, IconCopy, IconCheck as IconTick, IconUser, IconMapPin, IconCalendar, IconHash, IconReceipt2, IconDownload } from "@tabler/icons-react"
+import { doc, updateDoc, collection, getDocs } from "firebase/firestore"
+import { getAvailableSlotsQuery } from "@/services/slotService"
+import { assignRiderToOrderTransaction } from "@/services/orderService"
+import { IconPackage, IconTruck, IconCheck, IconX, IconCopy, IconCheck as IconTick, IconUser, IconMapPin, IconCalendar, IconRouter, IconMap2, IconDownload } from "@tabler/icons-react"
 import Image from "next/image"
 import { toast } from "sonner"
 
 const getStatusColor = (status) => {
     switch (status?.toUpperCase()) {
+        case "ASSIGNED":
+            return "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-400 dark:border-indigo-800"
         case "PROCESSING":
             return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800"
+        case "OUT FOR DELIVERY":
+            return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800"
         case "SHIPPED":
             return "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800"
         case "DELIVERED":
@@ -50,8 +56,12 @@ const getStatusColor = (status) => {
 
 const getStatusIcon = (status) => {
     switch (status?.toUpperCase()) {
+        case "ASSIGNED":
+            return <IconCheck className="h-4 w-4" />
         case "PROCESSING":
             return <IconPackage className="h-4 w-4" />
+        case "OUT FOR DELIVERY":
+            return <IconTruck className="h-4 w-4" />
         case "SHIPPED":
             return <IconTruck className="h-4 w-4" />
         case "DELIVERED":
@@ -63,9 +73,116 @@ const getStatusIcon = (status) => {
     }
 }
 
-export function OrderDetailsSheet({ order, open, onOpenChange }) {
+export function formatSlotDisplay(slotId) {
+    if (!slotId) return "No Slot Assignment";
+    try {
+        const [datePart, hourPart] = slotId.split('_');
+        const [year, month, day] = datePart.split('-');
+        const hourObj = parseInt(hourPart, 10);
+        
+        const ampmStart = hourObj >= 12 ? 'PM' : 'AM';
+        const startH = hourObj % 12 || 12;
+        
+        const nextHourObj = hourObj + 1;
+        const ampmEnd = nextHourObj >= 12 && nextHourObj < 24 ? 'PM' : 'AM';
+        const endH = nextHourObj % 12 || 12;
+        
+        return {
+            date: `${day}-${month}-${year}`,
+            time: `${startH}:00 ${ampmStart} - ${endH}:00 ${ampmEnd}`
+        }
+    } catch {
+        return { date: slotId, time: "" }
+    }
+}
+
+export function OrderDetailsSheet({ order, open, onOpenChange, ridersMap = {} }) {
     const [updating, setUpdating] = useState(false)
     const [copied, setCopied] = useState(false)
+    
+    // Assignment State
+    const [slots, setSlots] = useState([])
+    const [riders, setRiders] = useState([])
+    const [selectedSlot, setSelectedSlot] = useState("")
+    const [selectedRider, setSelectedRider] = useState("")
+    const [isAssigning, setIsAssigning] = useState(false)
+
+    useEffect(() => {
+        if (open) {
+            fetchSlots()
+            if (order?.slotId) {
+                 setSelectedSlot(order.slotId)
+                 fetchRidersForSlot(order.slotId)
+            } else {
+                 setSelectedSlot("")
+                 setSelectedRider("")
+                 setRiders([])
+            }
+            if (order?.riderId) setSelectedRider(order.riderId)
+        }
+    }, [open, order])
+
+    const fetchSlots = async () => {
+        try {
+            const snap = await getDocs(getAvailableSlotsQuery());
+            let fetchedSlots = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+            
+            // "today and yesterday only" (though tomorrow makes more sense for logistics, doing strictly what was asked)
+            const todayDate = new Date();
+            const yesterdayDate = new Date(todayDate);
+            yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+            
+            const todayStr = todayDate.toISOString().split('T')[0];
+            const yesterdayStr = yesterdayDate.toISOString().split('T')[0];
+            
+            fetchedSlots = fetchedSlots.filter(s => s.id.startsWith(todayStr) || s.id.startsWith(yesterdayStr));
+
+            if (order?.slotId && !fetchedSlots.find(s => s.id === order.slotId)) {
+                 fetchedSlots.push({ id: order.slotId, name: order.slotId }) // Dummy for display
+            }
+            setSlots(fetchedSlots)
+        } catch (error) {
+           console.error("Failed to load slots", error)
+        }
+    }
+
+    const fetchRidersForSlot = async (slotId) => {
+        if (!slotId) return;
+        try {
+            const snap = await getDocs(collection(db, `slots/${slotId}/riders`));
+            const fetchedRiders = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+            setRiders(fetchedRiders)
+        } catch (error) {
+            console.error("Failed to load riders", error)
+        }
+    }
+
+    const handleSlotChange = (slotId) => {
+        setSelectedSlot(slotId)
+        setSelectedRider("")
+        fetchRidersForSlot(slotId)
+    }
+
+    const handleAssign = async () => {
+        if (!selectedSlot || !selectedRider) return toast.error("Select both slot and rider")
+        
+        setIsAssigning(true)
+        try {
+            await assignRiderToOrderTransaction(
+                order.id, 
+                selectedSlot, 
+                selectedRider, 
+                order.slotId, 
+                order.riderId
+            )
+            toast.success("Order assigned successfully")
+             // Component will auto-update since parent passes `order` prop synced to firestore
+        } catch (error) {
+            toast.error(error.message || "Failed to assign order")
+        } finally {
+            setIsAssigning(false)
+        }
+    }
 
     if (!order) return null
 
@@ -127,7 +244,7 @@ export function OrderDetailsSheet({ order, open, onOpenChange }) {
                 </div>
 
                 <div className="p-6 space-y-8">
-                    {/* Status Processing Section */}
+                    {/* Status Management */}
                     <Card className="rounded-xl border shadow-sm">
                         <CardContent className="p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
                             <div className="space-y-1">
@@ -144,13 +261,71 @@ export function OrderDetailsSheet({ order, open, onOpenChange }) {
                                         <SelectValue placeholder="Update Status" />
                                     </SelectTrigger>
                                     <SelectContent>
+                                        <SelectItem value="ASSIGNED" className="font-medium text-indigo-600">Assigned</SelectItem>
                                         <SelectItem value="PROCESSING" className="font-medium">Processing</SelectItem>
+                                        <SelectItem value="OUT FOR DELIVERY" className="font-medium text-amber-600">Out for Delivery</SelectItem>
                                         <SelectItem value="SHIPPED" className="font-medium">Shipped</SelectItem>
                                         <SelectItem value="DELIVERED" className="font-medium text-secondary">Delivered</SelectItem>
                                         <SelectItem value="CANCELLED" className="font-medium text-destructive">Cancelled</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Logistics / Assignment */}
+                    <Card className="rounded-xl border shadow-sm bg-muted/5">
+                        <CardContent className="p-5">
+                             <div className="flex items-center gap-2 mb-4 text-primary">
+                                <IconMap2 className="h-5 w-5" />
+                                <h3 className="font-bold text-sm uppercase tracking-wider">Logistics & Assignment</h3>
+                             </div>
+
+                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                     <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Select Slot</label>
+                                     <Select value={selectedSlot} onValueChange={handleSlotChange}>
+                                         <SelectTrigger className="w-full">
+                                             <SelectValue placeholder="No Slot Selected" />
+                                         </SelectTrigger>
+                                         <SelectContent>
+                                             {slots.map(s => {
+                                                 const fmt = formatSlotDisplay(s.id);
+                                                 return (
+                                                     <SelectItem key={s.id} value={s.id}>
+                                                         Date: {fmt.date} | Time: {fmt.time}
+                                                     </SelectItem>
+                                                 )
+                                             })}
+                                         </SelectContent>
+                                     </Select>
+                                </div>
+                                <div className="space-y-2">
+                                     <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Select Rider</label>
+                                     <Select value={selectedRider} onValueChange={setSelectedRider} disabled={!selectedSlot || riders.length === 0}>
+                                         <SelectTrigger className="w-full">
+                                             <SelectValue placeholder={!selectedSlot ? "Select Slot First" : riders.length === 0 ? "No Riders Available" : "Select Rider"} />
+                                         </SelectTrigger>
+                                         <SelectContent>
+                                             {riders.map(r => (
+                                                 <SelectItem key={r.id} value={r.id}>
+                                                      {ridersMap[r.riderId || r.id] || r.id} ({r.assignedOrders || 0}/{r.maxOrders || 6})
+                                                 </SelectItem>
+                                             ))}
+                                         </SelectContent>
+                                     </Select>
+                                </div>
+                             </div>
+
+                             <div className="mt-4 flex justify-end">
+                                 <Button 
+                                    onClick={handleAssign} 
+                                    disabled={!selectedSlot || !selectedRider || isAssigning || (order.slotId === selectedSlot && order.riderId === selectedRider)}
+                                    className="rounded-lg font-bold uppercase tracking-widest text-[10px] px-6"
+                                >
+                                     {isAssigning ? "Assigning..." : "Confirm Logistics"}
+                                 </Button>
+                             </div>
                         </CardContent>
                     </Card>
 
@@ -192,7 +367,7 @@ export function OrderDetailsSheet({ order, open, onOpenChange }) {
                         {/* Order Statistics */}
                         <div className="space-y-3">
                             <div className="flex items-center gap-2 text-primary">
-                                <IconReceipt2 className="h-4 w-4" />
+                                <IconRouter className="h-4 w-4" />
                                 <h3 className="font-bold text-xs uppercase tracking-wider">Financial Summary</h3>
                             </div>
                             <div className="bg-muted/20 p-5 rounded-xl border space-y-4 h-full">
@@ -207,10 +382,10 @@ export function OrderDetailsSheet({ order, open, onOpenChange }) {
                                 </div>
                                 <Separator className="bg-border/50" />
                                 <div className="flex flex-col gap-2">
-                                    <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Gateway</p>
+                                    <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Payment Type</p>
                                     <div className="flex items-center gap-2 bg-secondary/10 dark:bg-secondary/20 p-2.5 rounded-xl border border-secondary/20 w-fit">
                                         <IconTick className="h-4 w-4 text-secondary" />
-                                        <p className="text-xs font-black text-secondary uppercase tracking-tight">Verified Online (Razorpay)</p>
+                                        <p className="text-xs font-black text-secondary uppercase tracking-tight">{order.paymentMethod === 'COD' ? 'Cash on Delivery' : 'Verified Online'}</p>
                                     </div>
                                 </div>
                             </div>
@@ -298,14 +473,11 @@ export function OrderDetailsSheet({ order, open, onOpenChange }) {
                                 <span className="text-2xl font-bold text-primary">₹{order.totalAmount?.toFixed(2) || "0.00"}</span>
                             </div>
                         </div>
-                        <div className="w-full grid grid-cols-2 gap-2">
-                            <Button variant="outline" size="sm" className="font-semibold h-9 rounded-lg">
-                                <IconReceipt2 className="h-4 w-4 mr-2" />
-                                Receipt
-                            </Button>
-                            <Button size="sm" className="font-semibold h-9 rounded-lg">
+                        <div className="w-full flex justify-end gap-2">
+                            {/* Receipt button removed as requested */}
+                            <Button size="sm" className="font-semibold h-9 rounded-lg w-full">
                                 <IconDownload className="h-4 w-4 mr-2" />
-                                Invoice
+                                Download Invoice
                             </Button>
                         </div>
                     </div>

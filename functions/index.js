@@ -1,123 +1,74 @@
-const {onDocumentCreated} = require("firebase-functions/v2/firestore");
+const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {setGlobalOptions} = require("firebase-functions/v2");
 const admin = require("firebase-admin");
 
 if (!admin.apps.length) {
   admin.initializeApp();
 }
-const db = admin.firestore();
 
-// Set global options like region
-setGlobalOptions({region: "asia-south1"});
+setGlobalOptions({region: "us-central1"});
 
 /**
- * Assigns newly created orders to a slot and rider.
+ * Scheduled function to generate slots daily at 12:00 AM
  */
-exports.assignOrderToSlot = onDocumentCreated("orders/{orderId}",
-    async (event) => {
-      const orderId = event.params.orderId;
-      const orderData = event.data.data();
+exports.generateDailySlots = onSchedule({
 
-      // Prevent processing pre-assigned orders
-      if (orderData.slotId || orderData.riderId) {
-        console.log(`Order ${orderId} already assigned. Skipping.`);
-        return;
-      }
-
-      const now = admin.firestore.Timestamp.now();
-
-      try {
-        const slotsColl = db.collection("slots");
-        const candidateSlotsSnap = await slotsColl
-            .where("isActive", "==", true)
-            .where("isLocked", "==", false)
-            .where("endTime", ">", now)
-            .orderBy("endTime", "asc")
-            .limit(5)
-            .get();
-
-        if (candidateSlotsSnap.empty) {
-          console.warn(`No active slots for order ${orderId}.`);
-          await markUnassigned(orderId, "no_active_slots_available");
-          return;
-        }
-
-        const candidateSlotIds = candidateSlotsSnap.docs.map((doc) => doc.id);
-
-        await db.runTransaction(async (transaction) => {
-          let selectedSlotDoc = null;
-          let selectedRiderDoc = null;
-
-          for (const slotId of candidateSlotIds) {
-            const slotRef = db.collection("slots").doc(slotId);
-            const slotSnap = await transaction.get(slotRef);
-
-            if (!slotSnap.exists) continue;
-
-            const slotCtx = slotSnap.data();
-            if (!slotCtx.isActive || slotCtx.isLocked) continue;
-
-            const cap = slotCtx.capacity || 0;
-            const ass = slotCtx.assignedOrders || 0;
-
-            if (ass >= cap) continue;
-
-            const avRidersQuery = slotRef.collection("riders")
-                .where("assignedOrders", "<", 6)
-                .orderBy("assignedOrders", "asc")
-                .limit(1);
-
-            const avRidersSnap = await transaction.get(avRidersQuery);
-
-            if (!avRidersSnap.empty) {
-              selectedSlotDoc = slotSnap;
-              selectedRiderDoc = avRidersSnap.docs[0];
-              break;
-            }
-          }
-
-          const orderRef = db.collection("orders").doc(orderId);
-
-          if (selectedSlotDoc && selectedRiderDoc) {
-            const nSlotA = (selectedSlotDoc.data().assignedOrders || 0) + 1;
-            transaction.update(selectedSlotDoc.ref, {assignedOrders: nSlotA});
-
-            const nRiderA = (selectedRiderDoc.data().assignedOrders || 0) + 1;
-            transaction.update(selectedRiderDoc.ref, {assignedOrders: nRiderA});
-
-            transaction.update(orderRef, {
-              slotId: selectedSlotDoc.id,
-              riderId: selectedRiderDoc.id,
-              status: "assigned",
-              assignedAt: admin.firestore.FieldValue.serverTimestamp(),
-            });
-
-            console.log(`✅ Order ${orderId} assigned.`);
-          } else {
-            console.warn(`❌ Order ${orderId} failed assignment.`);
-            transaction.update(orderRef, {
-              status: "unassigned",
-              reason: "no_slot_available",
-              failedAttemptAt: admin.firestore.FieldValue.serverTimestamp(),
-            });
-          }
-        });
-      } catch (error) {
-        console.error(`🚨 Error in assignOrderToSlot:`, error);
-        await markUnassigned(orderId, "transaction_failed");
-      }
+  schedule: "0 0 * * *",
+  timeZone: "Asia/Kolkata",
+  retryCount: 3,
+}, async (event) => {
+  const db = admin.firestore();
+  try {
+    const ridersQuery = db.collection("riders").where("status", "==", "ACTIVE");
+    const ridersSnap = await ridersQuery.get();
+    const activeRiders = ridersSnap.docs.map((doc) => {
+      return {id: doc.id, ...doc.data()};
     });
 
-/**
- * Marks an order as unassigned.
- * @param {string} orderId
- * @param {string} reason
- */
-async function markUnassigned(orderId, reason) {
-  await db.collection("orders").doc(orderId).update({
-    status: "unassigned",
-    reason: reason,
-  });
-}
+    const capacityPerSlot = activeRiders.length * 6;
+    const batch = db.batch();
 
+    const startHour = 9;
+    const endHour = 18;
 
+    for (let hour = startHour; hour < endHour; hour++) {
+      const dateString = new Date().toISOString().split("T")[0];
+      const hourString = hour.toString().padStart(2, "0");
+      const slotId = `${dateString}_${hourString}`;
+
+      const slotRef = db.collection("slots").doc(slotId);
+
+      const slotStartStr = `${dateString}T${hourString}:00:00Z`;
+      const nextHourStr = (hour + 1).toString().padStart(2, "0");
+      const slotEndStr = `${dateString}T${nextHourStr}:00:00Z`;
+
+      const slotStart = new Date(slotStartStr);
+      const slotEnd = new Date(slotEndStr);
+
+      batch.set(slotRef, {
+        startTime: admin.firestore.Timestamp.fromDate(slotStart),
+        endTime: admin.firestore.Timestamp.fromDate(slotEnd),
+        isActive: true,
+        isLocked: false,
+        capacity: capacityPerSlot,
+        assignedOrders: 0,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, {merge: true});
+
+      for (const rider of activeRiders) {
+        const riderSlotRef = slotRef.collection("riders").doc(rider.id);
+        batch.set(riderSlotRef, {
+          riderId: rider.riderId || rider.id,
+          maxOrders: 6,
+          assignedOrders: 0,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, {merge: true});
+      }
+    }
+
+    await batch.commit();
+    console.log("Successfully generated slots.");
+  } catch (error) {
+    console.error("Error generating daily slots:", error);
+  }
+});

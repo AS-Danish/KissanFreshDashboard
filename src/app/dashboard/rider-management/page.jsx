@@ -85,7 +85,7 @@ const getStatusColor = (status) => {
             return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400"
         case "ON DELIVERY":
             return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400"
-        case "OFFLINE":
+        case "INACTIVE":
             return "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/20 dark:text-slate-400"
         default:
             return "bg-muted text-muted-foreground border-border"
@@ -98,7 +98,7 @@ const getStatusIcon = (status) => {
             return <IconCircleFilled className="h-2 w-2" />
         case "ON DELIVERY":
             return <IconTruck className="h-3 w-3" />
-        case "OFFLINE":
+        case "INACTIVE":
             return <IconCircleFilled className="h-2 w-2 opacity-50" />
         default:
             return null
@@ -122,7 +122,7 @@ export default function RiderManagement() {
         phone: '',
         vehicleType: 'Bike',
         vehicleNumber: '',
-        status: 'OFFLINE'
+        status: 'INACTIVE'
     });
     
     const [selectedRider, setSelectedRider] = useState(null);
@@ -193,7 +193,7 @@ export default function RiderManagement() {
             phone: '',
             vehicleType: 'Bike',
             vehicleNumber: '',
-            status: 'OFFLINE'
+            status: 'INACTIVE'
         });
         setSelectedRider(null);
     };
@@ -284,7 +284,7 @@ export default function RiderManagement() {
             phone: rider.phone || '',
             vehicleType: rider.vehicleType || 'Bike',
             vehicleNumber: rider.vehicleNumber || '',
-            status: rider.status || 'OFFLINE'
+            status: rider.status || 'INACTIVE'
         });
         setIsEditModalOpen(true);
     };
@@ -399,8 +399,8 @@ export default function RiderManagement() {
                         <Card className="rounded-xl border shadow-sm">
                             <CardContent className="p-6 flex items-center justify-between">
                                 <div className="space-y-1">
-                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Offline</p>
-                                    <h3 className="text-2xl font-bold text-foreground">{riders.filter(r => r.status === 'OFFLINE').length}</h3>
+                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Inactive</p>
+                                    <h3 className="text-2xl font-bold text-foreground">{riders.filter(r => r.status === 'INACTIVE').length}</h3>
                                 </div>
                                 <div className="h-10 w-10 bg-slate-500/10 text-slate-500 rounded-lg flex items-center justify-center">
                                     <IconX className="h-6 w-6" />
@@ -430,7 +430,7 @@ export default function RiderManagement() {
                                         <SelectItem value="all" className="text-xs font-semibold uppercase">All Riders</SelectItem>
                                         <SelectItem value="ACTIVE" className="text-xs font-semibold uppercase text-emerald-600">Active Fleet</SelectItem>
                                         <SelectItem value="ON DELIVERY" className="text-xs font-semibold uppercase text-blue-600">On Delivery</SelectItem>
-                                        <SelectItem value="OFFLINE" className="text-xs font-semibold uppercase text-slate-500">Offline</SelectItem>
+                                        <SelectItem value="INACTIVE" className="text-xs font-semibold uppercase text-slate-500">Inactive</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -533,7 +533,7 @@ export default function RiderManagement() {
                                                 <TableCell className="text-center">
                                                     <Badge variant="outline" className={`${getStatusColor(rider.status)} px-3 py-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider justify-center w-[130px] mx-auto`}>
                                                         {getStatusIcon(rider.status)}
-                                                        {rider.status || 'OFFLINE'}
+                                                        {rider.status || 'INACTIVE'}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="text-right px-6">
@@ -557,11 +557,11 @@ export default function RiderManagement() {
                                                                     </div>
                                                                     Set Active
                                                                 </DropdownMenuItem>
-                                                                <DropdownMenuItem onClick={() => handleUpdateStatus(rider.id, 'OFFLINE')} className="rounded-xl flex items-center gap-3 py-3 font-bold text-xs uppercase tracking-tight focus:bg-slate-50 focus:text-slate-700 dark:focus:bg-slate-900/20">
+                                                                <DropdownMenuItem onClick={() => handleUpdateStatus(rider.id, 'INACTIVE')} className="rounded-xl flex items-center gap-3 py-3 font-bold text-xs uppercase tracking-tight focus:bg-slate-50 focus:text-slate-700 dark:focus:bg-slate-900/20">
                                                                     <div className="h-8 w-8 bg-slate-100 dark:bg-slate-900/30 rounded-lg flex items-center justify-center">
                                                                         <IconX className="h-4 w-4 text-slate-600" />
                                                                     </div>
-                                                                    Set Offline
+                                                                    Set Inactive
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuSeparator />
                                                                 <DropdownMenuItem onClick={() => openEditModal(rider)} className="rounded-xl flex items-center gap-3 py-3 font-bold text-xs uppercase tracking-tight focus:bg-blue-50 focus:text-blue-700 dark:focus:bg-blue-900/20">

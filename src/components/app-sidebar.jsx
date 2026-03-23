@@ -17,6 +17,7 @@ import {
   IconSearch,
   IconSettings,
   IconUsers,
+  IconCalendarTime,
 } from "@tabler/icons-react"
 
 import { NavDocuments } from "@/components/nav-documents"
@@ -58,6 +59,10 @@ const data = {
           title: "Home Food Products",
           url: "/dashboard/product-management/home-food",
         },
+        {
+          title: "Today's Special",
+          url: "/dashboard/product-management/todays-special",
+        },
       ]
     },
     {
@@ -81,9 +86,19 @@ const data = {
       icon: IconListDetails,
     },
     {
+      title: "Rider Management",
+      url: "/dashboard/rider-management",
+      icon: IconUsers,
+    },
+    {
       title: "User Management",
       url: "/dashboard/user-management",
       icon: IconUsers,
+    },
+    {
+      title: "Slot Management",
+      url: "/dashboard/slots-management",
+      icon: IconCalendarTime,
     },
   ],
   navClouds: [

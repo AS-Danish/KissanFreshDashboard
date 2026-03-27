@@ -116,9 +116,13 @@ export default function PrivacyPolicy() {
 
           <section>
             <h2 className="text-2xl font-semibold mb-4 text-zinc-900 dark:text-zinc-100">7. Your Rights</h2>
-            <p className="leading-relaxed">
+            <p className="leading-relaxed mb-4">
               You have the right to access, update, or request the deletion of your personal information. 
               You can manage most of your data directly through your account settings in the App or Website.
+            </p>
+            <p className="leading-relaxed">
+              For detailed instructions on how to delete your account, please visit our 
+              <Link href="/delete-account" className="text-green-600 hover:underline mx-1">Account Deletion Guide</Link>.
             </p>
           </section>
 

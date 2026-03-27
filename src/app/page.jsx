@@ -192,6 +192,7 @@ export default function Home() {
           <div className="flex gap-8 text-sm text-zinc-500">
             <Link href="/" className="hover:text-green-600 transition-colors">Home</Link>
             <Link href="/privacy" className="hover:text-green-600 transition-colors">Privacy Policy</Link>
+            <Link href="/delete-account" className="hover:text-green-600 transition-colors">Delete Account</Link>
             <Link href="/dashboard" className="hover:text-green-600 transition-colors">Dashboard</Link>
           </div>
           

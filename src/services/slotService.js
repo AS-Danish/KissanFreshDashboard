@@ -297,3 +297,51 @@ export const getAvailableSlotsQuery = () => {
 
 // Slot utilization can also be calculated client-side:
 // const utilizationData = slots.map(slot => ({ ...slot, utilization: slot.assignedOrders / (slot.capacity || 1) }));
+
+/**
+ * Deletes all slots for a given date string (YYYY-MM-DD).
+ * @param {string} dateString 
+ */
+export const deleteSlotsByDate = async (dateString) => {
+  try {
+    const slotsRef = collection(db, "slots");
+    
+    // We can use the slot ID prefix for efficiency if IDs are consistent: YYYY-MM-DD
+    // But using startTime range is more robust for Firestore timestamps.
+    const startOfDay = new Date(`${dateString}T00:00:00+05:30`);
+    const endOfDay = new Date(`${dateString}T23:59:59+05:30`);
+    
+    const q = query(
+      slotsRef, 
+      where("startTime", ">=", Timestamp.fromDate(startOfDay)),
+      where("startTime", "<=", Timestamp.fromDate(endOfDay))
+    );
+    
+    const querySnapshot = await getDocs(q);
+    if (querySnapshot.empty) {
+      return { success: true, message: "No slots found for this date." };
+    }
+
+    const batch = writeBatch(db);
+    let slotsWithOrders = [];
+
+    querySnapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      if ((data.assignedOrders || 0) > 0) {
+        slotsWithOrders.push(docSnap.id);
+      } else {
+        batch.delete(docSnap.ref);
+      }
+    });
+
+    if (slotsWithOrders.length > 0) {
+      throw new Error(`Could not delete some slots for this date because they have assigned orders: ${slotsWithOrders.length} slots affected.`);
+    }
+
+    await batch.commit();
+    return { success: true, count: querySnapshot.size };
+  } catch (error) {
+    console.error("Error deleting slots by date:", error);
+    throw error;
+  }
+};

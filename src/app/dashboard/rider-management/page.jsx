@@ -120,7 +120,6 @@ export default function RiderManagement() {
     const [riderFormData, setRiderFormData] = useState({
         name: '',
         phone: '',
-        vehicleType: 'Bike',
         vehicleNumber: '',
         status: 'INACTIVE'
     });
@@ -191,7 +190,6 @@ export default function RiderManagement() {
         setRiderFormData({
             name: '',
             phone: '',
-            vehicleType: 'Bike',
             vehicleNumber: '',
             status: 'INACTIVE'
         });
@@ -243,7 +241,6 @@ export default function RiderManagement() {
             await updateDoc(riderRef, {
                 name: riderFormData.name,
                 phone: riderFormData.phone,
-                vehicleType: riderFormData.vehicleType,
                 vehicleNumber: riderFormData.vehicleNumber,
                 avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(riderFormData.name)}`,
                 updatedAt: new Date().toISOString()
@@ -282,7 +279,6 @@ export default function RiderManagement() {
         setRiderFormData({
             name: rider.name || '',
             phone: rider.phone || '',
-            vehicleType: rider.vehicleType || 'Bike',
             vehicleNumber: rider.vehicleNumber || '',
             status: rider.status || 'INACTIVE'
         });
@@ -334,19 +330,6 @@ export default function RiderManagement() {
                                     <div className="space-y-2">
                                         <Label htmlFor="phone">Phone Number *</Label>
                                         <Input id="phone" name="phone" value={riderFormData.phone} onChange={handleFormChange} required placeholder="+91 9876543210" />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="vehicleType">Vehicle Type</Label>
-                                        <Select value={riderFormData.vehicleType} onValueChange={(val) => setRiderFormData(p => ({...p, vehicleType: val}))}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select vehicle type" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="Bike">Bike</SelectItem>
-                                                <SelectItem value="Scooty">Scooty</SelectItem>
-                                                <SelectItem value="Cycle">Cycle</SelectItem>
-                                            </SelectContent>
-                                        </Select>
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="vehicleNumber">Vehicle Number</Label>
@@ -442,8 +425,8 @@ export default function RiderManagement() {
                                     <TableRow>
                                         <TableHead className="font-semibold text-foreground px-6 py-4">Rider Identity</TableHead>
                                         <TableHead className="font-semibold text-foreground">Contact</TableHead>
-                                        <TableHead className="font-semibold text-foreground">Vehicle</TableHead>
-                                        <TableHead className="font-semibold text-foreground">Performance</TableHead>
+                                        <TableHead className="font-semibold text-foreground">Vehicle Number</TableHead>
+                                        <TableHead className="font-semibold text-foreground">Deliveries</TableHead>
                                         <TableHead className="font-semibold text-foreground text-center">Status</TableHead>
                                         <TableHead className="text-right font-semibold text-foreground px-6">Actions</TableHead>
                                     </TableRow>
@@ -512,21 +495,12 @@ export default function RiderManagement() {
                                                             <IconMotorbike className="h-4 w-4 text-slate-600 dark:text-slate-400" />
                                                         </div>
                                                         <div className="flex flex-col max-w-[120px]">
-                                                            <span className="text-sm font-medium truncate">{rider.vehicleType || 'Bike'}</span>
-                                                            <span className="text-[10px] text-muted-foreground truncate">{rider.vehicleNumber || 'N/A'}</span>
+                                                            <span className="text-sm font-medium truncate">{rider.vehicleNumber || 'N/A'}</span>
                                                         </div>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex flex-col gap-1">
-                                                        <div className="flex items-center gap-0.5">
-                                                            {[1, 2, 3, 4, 5].map((s) => (
-                                                                <IconStar 
-                                                                    key={s} 
-                                                                    className={`h-3.5 w-3.5 ${s <= (rider.rating || 5) ? 'text-amber-400 fill-amber-400' : 'text-muted fill-muted'}`} 
-                                                                />
-                                                            ))}
-                                                        </div>
                                                         <span className="font-bold text-xs text-primary">{rider.totalDeliveries || 0} Deliveries</span>
                                                     </div>
                                                 </TableCell>
@@ -643,19 +617,6 @@ export default function RiderManagement() {
                                 <div className="space-y-2">
                                     <Label htmlFor="edit-phone">Phone Number *</Label>
                                     <Input id="edit-phone" name="phone" value={riderFormData.phone} onChange={handleFormChange} required />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="edit-vehicleType">Vehicle Type</Label>
-                                    <Select value={riderFormData.vehicleType} onValueChange={(val) => setRiderFormData(p => ({...p, vehicleType: val}))}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select vehicle type" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="Bike">Bike</SelectItem>
-                                            <SelectItem value="Scooty">Scooty</SelectItem>
-                                            <SelectItem value="Cycle">Cycle</SelectItem>
-                                        </SelectContent>
-                                    </Select>
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="edit-vehicleNumber">Vehicle Number</Label>

@@ -125,6 +125,7 @@ export default function OrderManagement() {
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [ridersMap, setRidersMap] = useState({});
+    const [usersMap, setUsersMap] = useState({});
 
     useEffect(() => {
         const ridersRef = collection(db, "riders");
@@ -137,6 +138,15 @@ export default function OrderManagement() {
                 }
             });
             setRidersMap(map);
+        });
+
+        const usersRef = collection(db, "users");
+        const unsubscribeUsers = onSnapshot(usersRef, (snapshot) => {
+            const map = {};
+            snapshot.docs.forEach(doc => {
+                map[doc.id] = doc.data().name || doc.data().displayName || "Unknown User";
+            });
+            setUsersMap(map);
         });
 
         const ordersRef = collection(db, "orders");
@@ -155,6 +165,7 @@ export default function OrderManagement() {
         return () => {
             unsubscribeOrders();
             unsubscribeRiders();
+            unsubscribeUsers();
         };
     }, []);
 
@@ -304,6 +315,7 @@ export default function OrderManagement() {
                                         <TableHead className="font-semibold text-foreground px-6 py-4">Order ID</TableHead>
                                         <TableHead className="font-semibold text-foreground">Date & Time</TableHead>
                                         <TableHead className="font-semibold text-foreground">Customer</TableHead>
+                                        <TableHead className="font-semibold text-foreground">Method</TableHead>
                                         <TableHead className="font-semibold text-foreground">Assignment</TableHead>
                                         <TableHead className="font-semibold text-foreground">Amount</TableHead>
                                         <TableHead className="font-semibold text-foreground text-center">Status</TableHead>
@@ -361,13 +373,18 @@ export default function OrderManagement() {
                                                 <TableCell>
                                                     <div className="flex items-center gap-3">
                                                         <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">
-                                                            {order.userId?.substring(0, 1).toUpperCase() || 'U'}
+                                                            {(usersMap[order.userId] || 'U')?.substring(0, 1).toUpperCase()}
                                                         </div>
                                                         <div className="flex flex-col overflow-hidden max-w-[140px]">
-                                                            <span className="text-sm font-medium truncate">{order.userId}</span>
-                                                            <span className="text-[10px] text-muted-foreground truncate">Verified Client</span>
+                                                            <span className="text-sm font-medium truncate">{usersMap[order.userId] || 'Guest User'}</span>
+                                                            <span className="text-[10px] text-muted-foreground truncate uppercase font-mono tracking-tighter opacity-60">ID: {order.userId?.substring(0, 10)}</span>
                                                         </div>
                                                     </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant="outline" className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-widest ${order.paymentMethod === 'COD' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                                                        {order.paymentMethod === 'COD' ? 'COD' : 'Online'}
+                                                    </Badge>
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex flex-col">
@@ -546,6 +563,7 @@ export default function OrderManagement() {
                     open={isSheetOpen} 
                     onOpenChange={setIsSheetOpen} 
                     ridersMap={ridersMap}
+                    userName={selectedOrder ? usersMap[selectedOrder.userId] : ""}
                 />
             </SidebarInset>
         </SidebarProvider>

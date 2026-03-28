@@ -30,19 +30,26 @@ exports.generateDailySlots = onSchedule({
     const capacityPerSlot = activeRiders.length * 6;
     const batch = db.batch();
 
-    const startHour = 9;
-    const endHour = 18;
+    const startHour = 6;
+    const endHour = 22;
+
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    const dateString = formatter.format(new Date());
 
     for (let hour = startHour; hour < endHour; hour++) {
-      const dateString = new Date().toISOString().split("T")[0];
       const hourString = hour.toString().padStart(2, "0");
       const slotId = `${dateString}_${hourString}`;
 
       const slotRef = db.collection("slots").doc(slotId);
 
-      const slotStartStr = `${dateString}T${hourString}:00:00Z`;
+      const slotStartStr = `${dateString}T${hourString}:00:00+05:30`;
       const nextHourStr = (hour + 1).toString().padStart(2, "0");
-      const slotEndStr = `${dateString}T${nextHourStr}:00:00Z`;
+      const slotEndStr = `${dateString}T${nextHourStr}:00:00+05:30`;
 
       const slotStart = new Date(slotStartStr);
       const slotEnd = new Date(slotEndStr);

@@ -46,12 +46,13 @@ import {
 } from "@tabler/icons-react"
 import { toast } from "sonner"
 import { 
-    createSlotsBulk, 
     toggleSlotActive, 
     lockSlot, 
     unlockSlot, 
     assignRiderToSlot, 
-    removeRiderFromSlot 
+    removeRiderFromSlot,
+    deleteSlot,
+    deleteSlotsByDate
 } from "@/services/slotService"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
@@ -65,15 +66,8 @@ export default function SlotsManagement() {
     const [loading, setLoading] = useState(true);
 
     // Dialogs state
-    const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
     const [isManageRidersOpen, setIsManageRidersOpen] = useState(false);
 
-    const [generateData, setGenerateData] = useState({
-        startDate: new Date().toISOString().split('T')[0],
-        days: 7,
-        startHour: 9,
-        endHour: 18
-    });
 
     const [selectedSlot, setSelectedSlot] = useState(null);
     const [slotRiders, setSlotRiders] = useState([]);
@@ -135,25 +129,32 @@ export default function SlotsManagement() {
         });
     }, [slots, searchQuery, dateFilter]);
 
-    const handleGenerateChange = (e) => {
-        const { name, value } = e.target;
-        setGenerateData(prev => ({ 
-            ...prev, 
-            [name]: name === 'startDate' ? value : parseInt(value) || 0 
-        }));
-    };
-
-    const handleGenerateSlots = async (e) => {
-        e.preventDefault();
+    const handleDeleteSlot = async (slotId) => {
+        if (!confirm("Are you sure you want to delete this slot?")) return;
+        
         setIsSubmitting(true);
         try {
-            const start = new Date(generateData.startDate);
-            await createSlotsBulk(start, generateData.days, generateData.startHour, generateData.endHour);
-            toast.success("Slots generated successfully!");
-            setIsGenerateModalOpen(false);
+            await deleteSlot(slotId);
+            toast.success("Slot deleted successfully!");
         } catch (error) {
-            console.error("Failed to generate slots:", error);
-            toast.error("Failed to generate slots.");
+            console.error("Failed to delete slot:", error);
+            toast.error(error.message || "Failed to delete slot.");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleDeleteDaySlots = async () => {
+        if (!dateFilter) return;
+        if (!confirm(`Are you sure you want to delete ALL slots for ${dateFilter}? This action cannot be undone.`)) return;
+        
+        setIsSubmitting(true);
+        try {
+            const result = await deleteSlotsByDate(dateFilter);
+            toast.success(result.message || `Successfully deleted ${result.count} slots.`);
+        } catch (error) {
+            console.error("Failed to delete day slots:", error);
+            toast.error(error.message || "Failed to delete slots for the selected date.");
         } finally {
             setIsSubmitting(false);
         }
@@ -254,51 +255,6 @@ export default function SlotsManagement() {
                         <h2 className="text-2xl font-bold tracking-tight text-foreground uppercase">
                             Slot Management
                         </h2>
-                        
-                        <Dialog open={isGenerateModalOpen} onOpenChange={setIsGenerateModalOpen}>
-                            <DialogTrigger asChild>
-                                <Button className="h-10 px-4 font-medium transition-all shadow-sm">
-                                    <IconCalendarTime className="mr-2 h-4 w-4" />
-                                    Generate Slots
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent className="sm:max-w-[450px]">
-                                <DialogHeader>
-                                    <DialogTitle>Bulk Generate Slots</DialogTitle>
-                                    <DialogDescription className="text-xs">
-                                        This will automatically create 1-hour slots (e.g., 9-10, 10-11) for the duration of the operational hours you set below.
-                                        You can generate them for a single day or multiple days at once.
-                                    </DialogDescription>
-                                </DialogHeader>
-                                <form onSubmit={handleGenerateSlots} className="space-y-4 py-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="startDate">Starting Date</Label>
-                                        <Input id="startDate" name="startDate" type="date" value={generateData.startDate} onChange={handleGenerateChange} required />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="days">Generate for how many days?</Label>
-                                        <Input id="days" name="days" type="number" min="1" max="30" value={generateData.days} onChange={handleGenerateChange} required />
-                                        <p className="text-[10px] text-muted-foreground">e.g., 1 for only the selected date, 7 for a whole week.</p>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4 pt-2">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="startHour">Operation Start (Hour)</Label>
-                                            <Input id="startHour" name="startHour" type="number" min="0" max="23" value={generateData.startHour} onChange={handleGenerateChange} required />
-                                            <p className="text-[10px] text-muted-foreground">e.g., 9 for 9 AM</p>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="endHour">Operation End (Hour)</Label>
-                                            <Input id="endHour" name="endHour" type="number" min="1" max="24" value={generateData.endHour} onChange={handleGenerateChange} required />
-                                            <p className="text-[10px] text-muted-foreground">e.g., 18 for 6 PM</p>
-                                        </div>
-                                    </div>
-                                    <DialogFooter className="mt-4">
-                                        <Button type="button" variant="outline" onClick={() => setIsGenerateModalOpen(false)}>Cancel</Button>
-                                        <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Generating...' : 'Generate'}</Button>
-                                    </DialogFooter>
-                                </form>
-                            </DialogContent>
-                        </Dialog>
                     </div>
 
                     {/* Stats Overview */}
@@ -369,13 +325,22 @@ export default function SlotsManagement() {
                                     onChange={(e) => setDateFilter(e.target.value)}
                                 />
                             </div>
-                            <div className="w-full md:w-1/4">
+                             <div className="w-full md:w-1/4 flex gap-2">
                                 <Button 
                                     variant="outline" 
-                                    className="h-12 w-full" 
+                                    className="h-12 flex-1" 
                                     onClick={() => {setSearchQuery(""); setDateFilter("")}}
                                 >
-                                    Clear Filters
+                                    Clear
+                                </Button>
+                                <Button 
+                                    variant="destructive" 
+                                    className="h-12 flex-1 shadow-sm"
+                                    onClick={handleDeleteDaySlots}
+                                    disabled={!dateFilter || isSubmitting}
+                                >
+                                    <IconTrash className="h-4 w-4 mr-2" />
+                                    Delete Day
                                 </Button>
                             </div>
                         </div>
@@ -472,11 +437,22 @@ export default function SlotsManagement() {
                                                 <TableCell className="text-center">
                                                     <Badge variant="secondary" className="font-mono">{slot.capacity ? slot.capacity / 6 : 0} Riders</Badge>
                                                 </TableCell>
-                                                <TableCell className="text-right px-6">
-                                                   <Button size="sm" variant="outline" onClick={() => openManageRiders(slot)} className="text-xs font-semibold">
-                                                        <IconUsers className="h-4 w-4 mr-2" />
-                                                        Manage
-                                                   </Button>
+                                                 <TableCell className="text-right px-6">
+                                                   <div className="flex justify-end gap-2">
+                                                        <Button size="sm" variant="outline" onClick={() => openManageRiders(slot)} className="text-xs font-semibold">
+                                                            <IconUsers className="h-4 w-4 mr-2" />
+                                                            Manage
+                                                        </Button>
+                                                        <Button 
+                                                            size="sm" 
+                                                            variant="ghost" 
+                                                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                            onClick={() => handleDeleteSlot(slot.id)}
+                                                            disabled={isSubmitting || slot.assignedOrders > 0}
+                                                        >
+                                                            <IconTrash className="h-4 w-4" />
+                                                        </Button>
+                                                   </div>
                                                 </TableCell>
                                             </TableRow>
                                         ))

@@ -91,11 +91,6 @@ const data = {
       icon: IconUsers,
     },
     {
-      title: "User Management",
-      url: "/dashboard/user-management",
-      icon: IconUsers,
-    },
-    {
       title: "Slot Management",
       url: "/dashboard/slots-management",
       icon: IconCalendarTime,

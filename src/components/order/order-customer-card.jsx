@@ -1,0 +1,46 @@
+import { IconUser, IconMapPin, IconCalendar } from "@tabler/icons-react"
+
+export function OrderCustomerCard({ userName, userId, deliveryAddress, orderDate }) {
+    return (
+        <div className="space-y-3">
+            <div className="flex items-center gap-2 text-primary">
+                <IconUser className="h-4 w-4" />
+                <h3 className="font-bold text-xs uppercase tracking-wider">Customer Info</h3>
+            </div>
+            <div className="space-y-4 bg-muted/20 p-5 rounded-xl border">
+                <div>
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest mb-2">Customer Identity</p>
+                    <div className="flex flex-col gap-1.5 p-3 rounded-xl border bg-background/50">
+                        <div className="flex items-center gap-2">
+                            <div className="h-6 w-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">
+                                {userName?.substring(0, 1).toUpperCase() || 'U'}
+                            </div>
+                            <span className="text-sm font-bold text-foreground">{userName || 'Guest User'}</span>
+                        </div>
+                        <code className="text-[10px] font-mono text-muted-foreground opacity-70 truncate block">
+                            ID: {userId}
+                        </code>
+                    </div>
+                </div>
+                <div className="flex items-start gap-3 border-t pt-4">
+                    <div className="bg-white dark:bg-muted p-2 rounded-lg border shadow-sm shrink-0">
+                        <IconMapPin className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                        <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest mb-1">Destination</p>
+                        <p className="text-sm font-bold leading-tight">{deliveryAddress}</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-3 border-t pt-4">
+                    <div className="bg-white dark:bg-muted p-2 rounded-lg border shadow-sm shrink-0">
+                        <IconCalendar className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                        <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest mb-1">Timestamp</p>
+                        <p className="text-sm font-bold">{new Date(orderDate).toLocaleString()}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}

@@ -4,6 +4,8 @@ import { useEffect, useState } from "react"
 import { doc, getDoc } from "firebase/firestore"
 import { db } from "@/firebase/config"
 import { useAuth } from "@/context/AuthContext"
+import { logoutUser } from "@/services/authService"
+import { useRouter } from "next/navigation"
 
 import {
   IconCreditCard,
@@ -37,6 +39,7 @@ import {
 export function NavUser() {
   const { isMobile } = useSidebar()
   const { user } = useAuth()
+  const router = useRouter()
   const [userData, setUserData] = useState({
     name: "Loading...",
     email: "",
@@ -73,6 +76,15 @@ export function NavUser() {
 
     fetchUserData()
   }, [user])
+
+  const handleLogout = async () => {
+    try {
+      await logoutUser()
+      router.push("/login")
+    } catch (error) {
+      console.error("Logout failed:", error)
+    }
+  }
 
   return (
     <SidebarMenu>
@@ -122,7 +134,7 @@ export function NavUser() {
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
               <IconLogout />
               Log out
             </DropdownMenuItem>

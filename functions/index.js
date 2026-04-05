@@ -54,39 +54,57 @@ exports.generateDailySlots = require("firebase-functions/v2/scheduler")
           month: "2-digit",
           day: "2-digit",
         });
-        const dateString = formatter.format(new Date());
 
-        for (let hour = startHour; hour < endHour; hour++) {
-          const hourString = hour.toString().padStart(2, "0");
-          const slotId = `${dateString}_${hourString}`;
+        for (let dayOffset = 0; dayOffset <= 1; dayOffset++) {
+          const targetDate = new Date();
+          const dayMs = dayOffset * 24 * 60 * 60 * 1000;
+          targetDate.setTime(targetDate.getTime() + dayMs);
+          const dateString = formatter.format(targetDate);
 
-          const slotRef = db.collection("slots").doc(slotId);
+          // Check if slots for this date exist (e.g., from today's slot)
+          const firstSlotId =
+              `${dateString}_${startHour.toString().padStart(2, "0")}`;
+          const firstSlotSnap =
+              await db.collection("slots").doc(firstSlotId).get();
+          if (firstSlotSnap.exists) {
+            console.log(`Slots for ${dateString} already exist. Skipping.`);
+            continue;
+          }
 
-          const slotStartStr = `${dateString}T${hourString}:00:00+05:30`;
-          const nextHourStr = (hour + 1).toString().padStart(2, "0");
-          const slotEndStr = `${dateString}T${nextHourStr}:00:00+05:30`;
+          console.log(`Generating slots for date: ${dateString}`);
 
-          const slotStart = new Date(slotStartStr);
-          const slotEnd = new Date(slotEndStr);
+          for (let hour = startHour; hour < endHour; hour++) {
+            const hourString = hour.toString().padStart(2, "0");
+            const slotId = `${dateString}_${hourString}`;
 
-          batch.set(slotRef, {
-            startTime: admin.firestore.Timestamp.fromDate(slotStart),
-            endTime: admin.firestore.Timestamp.fromDate(slotEnd),
-            isActive: true,
-            isLocked: false,
-            capacity: capacityPerSlot,
-            assignedOrders: 0,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          }, {merge: true});
+            const slotRef = db.collection("slots").doc(slotId);
 
-          for (const rider of activeRiders) {
-            const riderSlotRef = slotRef.collection("riders").doc(rider.id);
-            batch.set(riderSlotRef, {
-              riderId: rider.riderId || rider.id,
-              maxOrders: 6,
+            const slotStartStr = `${dateString}T${hourString}:00:00+05:30`;
+            const nextHourStr = (hour + 1).toString().padStart(2, "0");
+            const slotEndStr = `${dateString}T${nextHourStr}:00:00+05:30`;
+
+            const slotStart = new Date(slotStartStr);
+            const slotEnd = new Date(slotEndStr);
+
+            batch.set(slotRef, {
+              startTime: admin.firestore.Timestamp.fromDate(slotStart),
+              endTime: admin.firestore.Timestamp.fromDate(slotEnd),
+              isActive: true,
+              isLocked: false,
+              capacity: capacityPerSlot,
               assignedOrders: 0,
               createdAt: admin.firestore.FieldValue.serverTimestamp(),
             }, {merge: true});
+
+            for (const rider of activeRiders) {
+              const riderSlotRef = slotRef.collection("riders").doc(rider.id);
+              batch.set(riderSlotRef, {
+                riderId: rider.riderId || rider.id,
+                maxOrders: 6,
+                assignedOrders: 0,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              }, {merge: true});
+            }
           }
         }
 
@@ -353,6 +371,37 @@ exports.createOrder = require("firebase-functions/v2/https")
             console.log(`✅ Order ${orderData.id} successfully created and ` +
                 `assigned to requested Slot: ${result.slotId}, ` +
                 `Rider: ${result.riderId}`);
+
+            // 6. Send FCM Notification to User (Non-blocking)
+            try {
+              const userRef = db.collection("users").doc(auth.uid);
+              const userSnap = await userRef.get();
+              const fcmToken = userSnap.data()?.fcmToken;
+
+              if (fcmToken) {
+                const message = {
+                  notification: {
+                    title: "Order Successfully Placed!",
+                    body: `Your order #${orderData.id} has been confirmed. ` +
+                        `Thank you for shopping with Kissan Fresh!`,
+                  },
+                  data: {
+                    orderId: orderData.id,
+                    type: "ORDER_PLACED",
+                  },
+                  token: fcmToken,
+                };
+                await admin.messaging().send(message);
+                console.log(`FCM notification sent for Order: ${orderData.id}`);
+              } else {
+                console.log(`No FCM token found for User: ${auth.uid}. ` +
+                    `Skipping notification.`);
+              }
+            } catch (err) {
+              console.error(`Error sending FCM notification for order ` +
+                  `${orderData.id}:`, err);
+            }
+
             return {
               success: true,
               message: "Order processed successfully",

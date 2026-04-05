@@ -23,13 +23,11 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { IconArrowLeft, IconUpload, IconX, IconCamera } from "@tabler/icons-react"
+import { getCategories } from "@/services/categoryService";
 
 import { db, storage } from "@/firebase/config";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-
-const KISSAN_FRESH_CATEGORIES = ["Fruits", "Vegetables", "Dairy", "Bakery", "Meat & Poultry", "Grains"];
-const HOME_FOOD_CATEGORIES = ["Pickles", "Spices", "Snacks", "Sweets", "Staples", "Meals"];
 
 const KISSAN_FRESH_TAGS = ["100% Organic", "Fresh", "Pure", "Farm-to-table", "Locally Sourced", "Vegan", "Gluten-Free"];
 const HOME_FOOD_TAGS = ["Homemade", "Preservative-free", "Traditional", "Authentic", "Mom's Recipe", "Spicy", "Healthy"];
@@ -39,11 +37,11 @@ export default function EditProduct() {
     const productId = params.id;
     const productType = params.productType;
 
-    const availableCategories = productType === 'home-food' ? HOME_FOOD_CATEGORIES : KISSAN_FRESH_CATEGORIES;
     const availableTags = productType === 'home-food' ? HOME_FOOD_TAGS : KISSAN_FRESH_TAGS;
 
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
+    const [availableCategories, setAvailableCategories] = useState([]);
 
     const [formData, setFormData] = useState({
         name: '',
@@ -57,6 +55,16 @@ export default function EditProduct() {
     const [newImages, setNewImages] = useState([]); // File objects
 
     useEffect(() => {
+        const fetchCats = async () => {
+            try {
+                const cats = await getCategories(productType === 'home-food' ? 'home-food' : 'kissan-fresh');
+                setAvailableCategories(cats.map(c => c.name));
+            } catch (error) {
+                console.error("Error fetching categories:", error);
+            }
+        };
+        fetchCats();
+
         const fetchProduct = async () => {
             if (!productId) return;
             try {
@@ -84,7 +92,7 @@ export default function EditProduct() {
             }
         };
         fetchProduct();
-    }, [productId, router]);
+    }, [productId, router, productType]);
 
     const handleInputChange = (e) => {
         const { id, value } = e.target;

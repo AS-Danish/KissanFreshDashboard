@@ -95,6 +95,11 @@ const data = {
       url: "/dashboard/slots-management",
       icon: IconCalendarTime,
     },
+    {
+      title: "Manage Categories",
+      url: "/dashboard/category-management",
+      icon: IconListDetails,
+    },
   ],
   navClouds: [
     {

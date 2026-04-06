@@ -22,16 +22,19 @@ import {
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { IconArrowLeft, IconUpload, IconX, IconCamera } from "@tabler/icons-react"
+import { IconArrowLeft, IconUpload, IconX, IconCamera, IconSearch } from "@tabler/icons-react"
 import { getCategories } from "@/services/categoryService";
 
 import { db, storage } from "@/firebase/config";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 
+import { useCategory } from "@/context/CategoryContext";
+
 const KISSAN_FRESH_TAGS = ["100% Organic", "Fresh", "Pure", "Farm-to-table", "Locally Sourced", "Vegan", "Gluten-Free"];
 const HOME_FOOD_TAGS = ["Homemade", "Preservative-free", "Traditional", "Authentic", "Mom's Recipe", "Spicy", "Healthy"];
 export default function EditProduct() {
+    const { categories } = useCategory();
     const params = useParams();
     const router = useRouter();
     const productId = params.id;
@@ -41,7 +44,7 @@ export default function EditProduct() {
 
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
-    const [availableCategories, setAvailableCategories] = useState([]);
+    const [categorySearch, setCategorySearch] = useState("");
 
     const [formData, setFormData] = useState({
         name: '',
@@ -54,17 +57,12 @@ export default function EditProduct() {
     const [existingImages, setExistingImages] = useState([]); // URLs from firestore
     const [newImages, setNewImages] = useState([]); // File objects
 
-    useEffect(() => {
-        const fetchCats = async () => {
-            try {
-                const cats = await getCategories(productType === 'home-food' ? 'home-food' : 'kissan-fresh');
-                setAvailableCategories(cats.map(c => c.name));
-            } catch (error) {
-                console.error("Error fetching categories:", error);
-            }
-        };
-        fetchCats();
+    const availableCategories = categories[productType === 'home-food' ? 'home-food' : 'kissan-fresh'] || [];
+    const filteredCategories = availableCategories.filter(cat => 
+        cat.name.toLowerCase().includes(categorySearch.toLowerCase())
+    );
 
+    useEffect(() => {
         const fetchProduct = async () => {
             if (!productId) return;
             try {
@@ -226,15 +224,34 @@ export default function EditProduct() {
                                     </div>
 
                                     <div className="grid gap-3 group/input">
-                                        <Label htmlFor="category" className="text-sm font-semibold tracking-wide text-foreground/80 group-focus-within/input:text-primary transition-colors">Category</Label>
+                                        <div className="flex items-center justify-between">
+                                            <Label htmlFor="category" className="text-sm font-semibold tracking-wide text-foreground/80 group-focus-within/input:text-primary transition-colors">Category</Label>
+                                            <span className="text-[10px] uppercase font-bold text-muted-foreground/60">{availableCategories.length} Categories</span>
+                                        </div>
                                         <Select required value={formData.category} onValueChange={handleCategoryChange}>
                                             <SelectTrigger id="category" className="bg-background border-border/50 focus:ring-primary/50 h-12 text-base transition-all duration-300 hover:bg-muted/50">
                                                 <SelectValue placeholder="Select a category" />
                                             </SelectTrigger>
-                                            <SelectContent className="border-border">
-                                                {availableCategories.map((cat) => (
-                                                    <SelectItem key={cat} value={cat} className="hover:bg-muted focus:bg-muted cursor-pointer">{cat}</SelectItem>
-                                                ))}
+                                            <SelectContent position="popper" side="bottom" className="border-border max-h-[300px] w-[var(--radix-select-trigger-width)]">
+                                                <div className="p-2 sticky top-0 bg-background z-10 border-b border-border/50 mb-1">
+                                                    <div className="relative">
+                                                        <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+                                                        <Input 
+                                                            placeholder="Search categories..." 
+                                                            value={categorySearch}
+                                                            onChange={(e) => setCategorySearch(e.target.value)}
+                                                            className="h-8 pl-8 text-xs bg-muted/30 border-none"
+                                                            onKeyDown={(e) => e.stopPropagation()} 
+                                                        />
+                                                    </div>
+                                                </div>
+                                                {filteredCategories.length === 0 ? (
+                                                    <p className="p-4 text-center text-xs text-muted-foreground italic">No categories match.</p>
+                                                ) : (
+                                                    filteredCategories.map((cat) => (
+                                                        <SelectItem key={cat.id} value={cat.name} className="hover:bg-muted focus:bg-muted cursor-pointer py-3">{cat.name}</SelectItem>
+                                                    ))
+                                                )}
                                             </SelectContent>
                                         </Select>
                                     </div>

@@ -25,8 +25,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { IconSearch, IconArrowLeft, IconCheck } from "@tabler/icons-react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 
-const KISSAN_FRESH_CATEGORIES = ["Fruits", "Vegetables", "Dairy", "Bakery", "Meat & Poultry", "Grains"];
-const HOME_FOOD_CATEGORIES = ["Pickles", "Spices", "Snacks", "Sweets", "Staples", "Meals"];
+import { useCategory } from "@/context/CategoryContext";
 
 // Custom hook for debouncing search query
 function useDebounce(value, delay) {
@@ -50,7 +49,8 @@ export default function BulkAddStock() {
     const router = useRouter();
     const productType = params.productType; // "kissan-fresh" or "home-food"
 
-    const availableCategories = productType === 'home-food' ? HOME_FOOD_CATEGORIES : KISSAN_FRESH_CATEGORIES;
+    const { categories } = useCategory();
+    const availableCategories = categories[productType === 'home-food' ? 'home-food' : 'kissan-fresh'] || [];
 
     const [products, setProducts] = useState([]);
     const [searchQuery, setSearchQuery] = useState("");
@@ -202,7 +202,7 @@ export default function BulkAddStock() {
                                                 <SelectContent>
                                                     <SelectItem value="all">All Categories</SelectItem>
                                                     {availableCategories.map((cat) => (
-                                                        <SelectItem key={cat} value={cat.toLowerCase()}>{cat}</SelectItem>
+                                                        <SelectItem key={cat.id} value={cat.name.toLowerCase()}>{cat.name}</SelectItem>
                                                     ))}
                                                 </SelectContent>
                                             </Select>

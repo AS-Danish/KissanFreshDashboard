@@ -32,6 +32,7 @@ import {
 import { IconSearch, IconChevronLeft, IconChevronRight, IconEdit, IconCheck, IconX } from "@tabler/icons-react"
 
 import { useCategory } from "@/context/CategoryContext";
+import { updateCatalogVersion } from "@/services/appConfigService";
 
 const ITEMS_PER_PAGE = 5;
 
@@ -116,6 +117,10 @@ export default function StockManagement() {
                 inStock: Number(editStockValue) > 0, // optionally derive inStock flag here
                 updatedAt: new Date().toISOString()
             });
+            
+            // Update catalog version for cache busting
+            await updateCatalogVersion();
+            
             setEditingProductId(null);
         } catch (error) {
             console.error("Error updating stock: ", error);
@@ -240,7 +245,12 @@ export default function StockManagement() {
                                                     {product.name}
                                                 </TableCell>
                                                 <TableCell className="text-muted-foreground">{product.category}</TableCell>
-                                                <TableCell className="font-medium">₹{Number(product.price).toFixed(2)}</TableCell>
+                                                <TableCell className="font-medium whitespace-nowrap">
+                                                    ₹{Number(product.price).toFixed(2)}
+                                                    <span className="text-[10px] text-muted-foreground ml-1 font-normal italic uppercase">
+                                                        {product.unitValue && Number(product.unitValue) > 1 ? ` for ${product.unitValue}${product.unit}` : ` / ${product.unit || 'pc'}`}
+                                                    </span>
+                                                </TableCell>
 
                                                 <TableCell className="text-center">
                                                     {isEditing ? (

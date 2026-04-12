@@ -26,6 +26,7 @@ import { IconSearch, IconArrowLeft, IconCheck } from "@tabler/icons-react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 
 import { useCategory } from "@/context/CategoryContext";
+import { updateCatalogVersion } from "@/services/appConfigService";
 
 // Custom hook for debouncing search query
 function useDebounce(value, delay) {
@@ -140,6 +141,10 @@ export default function BulkAddStock() {
             });
 
             await Promise.all(updatePromises);
+            
+            // Update catalog version for cache busting
+            await updateCatalogVersion();
+            
             alert(`Successfully added stock to ${productIds.length} products!`);
             router.push(`/dashboard/stock-management/${productType}`);
         } catch (error) {
@@ -311,7 +316,9 @@ export default function BulkAddStock() {
                                                         </div>
                                                         <div className="flex-1 min-w-0">
                                                             <p className="font-semibold text-sm truncate text-foreground">{entry.product.name}</p>
-                                                            <p className="text-xs text-muted-foreground">Current: {currentStock}</p>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                Current: {currentStock} <span className="italic opacity-70">({entry.product.unitValue && Number(entry.product.unitValue) > 1 ? `${entry.product.unitValue}${entry.product.unit}` : `${entry.product.unit || 'pc'}`})</span>
+                                                            </p>
                                                         </div>
                                                         <div className="flex items-center gap-2">
                                                             <span className="text-xs font-medium text-muted-foreground">+</span>

@@ -24,6 +24,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { IconArrowLeft, IconUpload, IconX, IconCamera, IconSearch } from "@tabler/icons-react"
 import { getCategories } from "@/services/categoryService";
+import { updateCatalogVersion } from "@/services/appConfigService";
 
 import { db, storage } from "@/firebase/config";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
@@ -49,6 +50,8 @@ export default function EditProduct() {
     const [formData, setFormData] = useState({
         name: '',
         category: '',
+        unit: '',
+        unitValue: '1',
         description: '',
         price: ''
     });
@@ -56,6 +59,10 @@ export default function EditProduct() {
     const [inStock, setInStock] = useState(false);
     const [existingImages, setExistingImages] = useState([]); // URLs from firestore
     const [newImages, setNewImages] = useState([]); // File objects
+
+    const availableUnits = productType === 'home-food' 
+        ? ["Plate", "Bowl", "Piece", "Box", "Pack", "Portion"] 
+        : ["gm", "kg", "Piece", "Bunch", "Litre", "ml", "Pack", "Dozen"];
 
     const availableCategories = categories[productType === 'home-food' ? 'home-food' : 'kissan-fresh'] || [];
     const filteredCategories = availableCategories.filter(cat => 
@@ -73,6 +80,8 @@ export default function EditProduct() {
                     setFormData({
                         name: data.name || '',
                         category: data.category || '',
+                        unit: data.unit || '',
+                        unitValue: data.unitValue ? data.unitValue.toString() : '1',
                         description: data.description || '',
                         price: data.price ? data.price.toString() : ''
                     });
@@ -142,16 +151,23 @@ export default function EditProduct() {
 
             const finalImages = [...existingImages, ...uploadedUrls];
 
-            await updateDoc(doc(db, "products", productId), {
+            const updatedData = {
                 name: formData.name,
-                description: formData.description,
                 category: formData.category,
+                unit: formData.unit,
+                unitValue: Number(formData.unitValue) || 1,
+                description: formData.description,
                 price: Number(formData.price),
-                tags,
-                inStock,
+                tags: tags,
+                inStock: inStock,
                 images: finalImages,
                 updatedAt: new Date().toISOString()
-            });
+            };
+
+            await updateDoc(doc(db, "products", productId), updatedData);
+            
+            // Update catalog version for cache busting
+            await updateCatalogVersion();
 
             alert(`Product ${formData.name} Updated Successfully!`);
             router.push(`/dashboard/product-management/${productType}`);
@@ -232,25 +248,29 @@ export default function EditProduct() {
                                             <SelectTrigger id="category" className="bg-background border-border/50 focus:ring-primary/50 h-12 text-base transition-all duration-300 hover:bg-muted/50">
                                                 <SelectValue placeholder="Select a category" />
                                             </SelectTrigger>
-                                            <SelectContent position="popper" side="bottom" className="border-border max-h-[300px] w-[var(--radix-select-trigger-width)]">
+                                            <SelectContent position="popper" side="bottom" className="border-border max-h-[300px] w-full min-w-[var(--radix-select-trigger-width)]">
                                                 <div className="p-2 sticky top-0 bg-background z-10 border-b border-border/50 mb-1">
                                                     <div className="relative">
-                                                        <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+                                                        <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
                                                         <Input 
                                                             placeholder="Search categories..." 
                                                             value={categorySearch}
                                                             onChange={(e) => setCategorySearch(e.target.value)}
-                                                            className="h-8 pl-8 text-xs bg-muted/30 border-none"
-                                                            onKeyDown={(e) => e.stopPropagation()} 
+                                                            className="h-8 pl-8 text-xs bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary/30"
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === ' ') e.stopPropagation(); // Stop space from selecting current item
+                                                            }}
                                                         />
                                                     </div>
                                                 </div>
                                                 {filteredCategories.length === 0 ? (
                                                     <p className="p-4 text-center text-xs text-muted-foreground italic">No categories match.</p>
                                                 ) : (
-                                                    filteredCategories.map((cat) => (
-                                                        <SelectItem key={cat.id} value={cat.name} className="hover:bg-muted focus:bg-muted cursor-pointer py-3">{cat.name}</SelectItem>
-                                                    ))
+                                                    <div className="max-h-[220px] overflow-y-auto">
+                                                        {filteredCategories.map((cat) => (
+                                                            <SelectItem key={cat.id} value={cat.name} className="hover:bg-muted focus:bg-muted cursor-pointer py-3">{cat.name}</SelectItem>
+                                                        ))}
+                                                    </div>
                                                 )}
                                             </SelectContent>
                                         </Select>
@@ -278,19 +298,48 @@ export default function EditProduct() {
                                         </div>
                                     </div>
 
-                                    <div className="grid gap-3 group/input">
-                                        <Label htmlFor="price" className="text-sm font-semibold tracking-wide text-foreground/80 group-focus-within/input:text-primary transition-colors">Price (₹)</Label>
-                                        <Input
-                                            type="number"
-                                            id="price"
-                                            placeholder="0.00"
-                                            min="0"
-                                            step="0.01"
-                                            value={formData.price}
-                                            onChange={handleInputChange}
-                                            required
-                                            className="bg-background border-border/50 focus-visible:ring-primary/50 h-12 text-base transition-all duration-300 hover:bg-muted/50 font-medium"
-                                        />
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                        <div className="grid gap-3 group/input">
+                                            <Label htmlFor="price" className="text-sm font-semibold tracking-wide text-foreground/80 group-focus-within/input:text-primary transition-colors">Price (₹)</Label>
+                                            <Input
+                                                id="price"
+                                                type="number"
+                                                placeholder="0.00"
+                                                value={formData.price}
+                                                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                                                required
+                                                className="bg-background border-border/50 focus-visible:ring-primary/50 h-12 text-base transition-all duration-300 hover:bg-muted/50"
+                                            />
+                                        </div>
+
+                                        <div className="grid gap-3 group/input">
+                                            <Label htmlFor="unit-value" className="text-sm font-semibold tracking-wide text-foreground/80 group-focus-within/input:text-primary transition-colors">Quantity</Label>
+                                            <Input
+                                                id="unit-value"
+                                                type="number"
+                                                placeholder="1"
+                                                min="0"
+                                                value={formData.unitValue}
+                                                onChange={(e) => setFormData({ ...formData, unitValue: e.target.value })}
+                                                className="bg-background border-border/50 focus-visible:ring-primary/50 h-12 text-base transition-all duration-300 hover:bg-muted/50"
+                                            />
+                                        </div>
+
+                                        <div className="grid gap-3 group/input">
+                                            <Label htmlFor="unit" className="text-sm font-semibold tracking-wide text-foreground/80 group-focus-within/input:text-primary transition-colors">Unit Type</Label>
+                                            <Select required value={formData.unit} onValueChange={(val) => setFormData({ ...formData, unit: val })}>
+                                                <SelectTrigger id="unit" className="bg-background border-border/50 focus-ring-primary/50 h-12 text-base transition-all duration-300 hover:bg-muted/50">
+                                                    <SelectValue placeholder="Select unit" />
+                                                </SelectTrigger>
+                                                <SelectContent className="border-border">
+                                                    {availableUnits.map((u) => (
+                                                        <SelectItem key={u} value={u.toLowerCase()} className="hover:bg-muted focus:bg-muted cursor-pointer py-2">
+                                                            {u}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
                                     </div>
 
                                     <div className="grid gap-3 group/input">

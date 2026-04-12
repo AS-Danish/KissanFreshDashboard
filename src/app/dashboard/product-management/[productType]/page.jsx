@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/table"
 import { IconEdit, IconTrash, IconSearch, IconChevronLeft, IconChevronRight } from "@tabler/icons-react"
 import { useCategory } from "@/context/CategoryContext";
+import { updateCatalogVersion } from "@/services/appConfigService";
 
 const ITEMS_PER_PAGE = 5;
 
@@ -82,6 +83,9 @@ export default function ProductManagement() {
         if (window.confirm("Are you sure you want to delete this product?")) {
             try {
                 await deleteDoc(doc(db, "products", id));
+                
+                // Update catalog version for cache busting
+                await updateCatalogVersion();
             } catch (error) {
                 console.error("Error deleting document: ", error);
                 alert("Failed to delete product.");
@@ -252,7 +256,12 @@ export default function ProductManagement() {
                                                     {product.description?.length > 50 ? `${product.description.substring(0, 50)}...` : product.description}
                                                 </p>
                                             </TableCell>
-                                            <TableCell className="font-bold text-foreground/80">₹{Number(product.price).toFixed(2)}</TableCell>
+                                            <TableCell className="font-bold text-foreground/80">
+                                                ₹{Number(product.price).toFixed(2)}
+                                                <span className="text-[10px] text-muted-foreground ml-1 font-normal uppercase italic">
+                                                    {product.unitValue && Number(product.unitValue) > 1 ? ` for ${product.unitValue}${product.unit}` : `/ ${product.unit || 'pc'}`}
+                                                </span>
+                                            </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-1">
                                                     <Link href={`/dashboard/product-management/${productType}/edit/${product.id}`}>

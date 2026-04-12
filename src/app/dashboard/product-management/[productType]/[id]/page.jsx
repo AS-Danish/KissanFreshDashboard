@@ -14,6 +14,7 @@ import { IconArrowLeft, IconEdit, IconTrash, IconChevronLeft, IconChevronRight }
 
 import { db } from "@/firebase/config";
 import { doc, getDoc, deleteDoc } from "firebase/firestore";
+import { updateCatalogVersion } from "@/services/appConfigService";
 
 export default function ProductDetailPage() {
     const params = useParams();
@@ -50,6 +51,10 @@ export default function ProductDetailPage() {
         if (window.confirm("Are you sure you want to delete this product?")) {
             try {
                 await deleteDoc(doc(db, "products", productId));
+                
+                // Update catalog version for cache busting
+                await updateCatalogVersion();
+                
                 alert("Product deleted successfully.");
                 router.push(`/dashboard/product-management/${productType}`);
             } catch (error) {
@@ -189,6 +194,9 @@ export default function ProductDetailPage() {
                                     </h1>
                                     <div className="text-3xl font-semibold text-primary">
                                         ₹{Number(product.price).toFixed(2)}
+                                        <span className="text-sm text-muted-foreground ml-2 font-normal uppercase tracking-wide italic">
+                                            {product.unitValue && Number(product.unitValue) > 1 ? ` for ${product.unitValue}${product.unit}` : `/ ${product.unit || 'piece'}`}
+                                        </span>
                                     </div>
                                 </div>
 

@@ -53,7 +53,9 @@ export default function EditProduct() {
         unit: '',
         unitValue: '1',
         description: '',
-        price: ''
+        price: '',
+        mrp: '',
+        discountPercentage: ''
     });
     const [tags, setTags] = useState([]);
     const [inStock, setInStock] = useState(false);
@@ -83,7 +85,9 @@ export default function EditProduct() {
                         unit: data.unit || '',
                         unitValue: data.unitValue ? data.unitValue.toString() : '1',
                         description: data.description || '',
-                        price: data.price ? data.price.toString() : ''
+                        price: data.price ? data.price.toString() : '',
+                        mrp: data.mrp ? data.mrp.toString() : (data.price ? data.price.toString() : ''),
+                        discountPercentage: data.discountPercentage ? data.discountPercentage.toString() : '0'
                     });
                     setTags(data.tags || []);
                     setInStock(data.hasOwnProperty('inStock') ? data.inStock : false);
@@ -104,6 +108,45 @@ export default function EditProduct() {
     const handleInputChange = (e) => {
         const { id, value } = e.target;
         setFormData(prev => ({ ...prev, [id]: value }));
+    };
+
+    const handleMrpChange = (e) => {
+        const newMrp = e.target.value;
+        setFormData(prev => {
+            let newPrice = prev.price;
+            if (newMrp && prev.discountPercentage) {
+                newPrice = (parseFloat(newMrp) - (parseFloat(newMrp) * parseFloat(prev.discountPercentage) / 100)).toFixed(2);
+            } else if (newMrp && !prev.discountPercentage) {
+                newPrice = newMrp;
+            }
+            return { ...prev, mrp: newMrp, price: newPrice };
+        });
+    };
+
+    const handleDiscountPercentageChange = (e) => {
+        const newPct = e.target.value;
+        setFormData(prev => {
+            let newPrice = prev.price;
+            if (prev.mrp && newPct) {
+                newPrice = (parseFloat(prev.mrp) - (parseFloat(prev.mrp) * parseFloat(newPct) / 100)).toFixed(2);
+            } else if (!newPct) {
+                newPrice = prev.mrp;
+            }
+            return { ...prev, discountPercentage: newPct, price: newPrice };
+        });
+    };
+
+    const handlePriceChange = (e) => {
+        const newPrice = e.target.value;
+        setFormData(prev => {
+            let newPct = prev.discountPercentage;
+            if (prev.mrp && newPrice && parseFloat(prev.mrp) > 0) {
+                newPct = (((parseFloat(prev.mrp) - parseFloat(newPrice)) / parseFloat(prev.mrp)) * 100).toFixed(2);
+            } else if (!newPrice) {
+                newPct = "";
+            }
+            return { ...prev, price: newPrice, discountPercentage: newPct };
+        });
     };
 
     const handleCategoryChange = (val) => {
@@ -157,6 +200,8 @@ export default function EditProduct() {
                 unit: formData.unit,
                 unitValue: Number(formData.unitValue) || 1,
                 description: formData.description,
+                mrp: parseFloat(formData.mrp) || parseFloat(formData.price),
+                discountPercentage: parseFloat(formData.discountPercentage) || 0,
                 price: Number(formData.price),
                 tags: tags,
                 inStock: inStock,
@@ -300,18 +345,45 @@ export default function EditProduct() {
 
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                         <div className="grid gap-3 group/input">
-                                            <Label htmlFor="price" className="text-sm font-semibold tracking-wide text-foreground/80 group-focus-within/input:text-primary transition-colors">Price (₹)</Label>
+                                            <Label htmlFor="mrp" className="text-sm font-semibold tracking-wide text-foreground/80 group-focus-within/input:text-primary transition-colors">MRP (₹)</Label>
                                             <Input
-                                                id="price"
+                                                id="mrp"
                                                 type="number"
                                                 placeholder="0.00"
-                                                value={formData.price}
-                                                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                                                value={formData.mrp}
+                                                onChange={handleMrpChange}
                                                 required
                                                 className="bg-background border-border/50 focus-visible:ring-primary/50 h-12 text-base transition-all duration-300 hover:bg-muted/50"
                                             />
                                         </div>
 
+                                        <div className="grid gap-3 group/input">
+                                            <Label htmlFor="discountPercentage" className="text-sm font-semibold tracking-wide text-foreground/80 group-focus-within/input:text-primary transition-colors">Discount (%)</Label>
+                                            <Input
+                                                id="discountPercentage"
+                                                type="number"
+                                                placeholder="0"
+                                                value={formData.discountPercentage}
+                                                onChange={handleDiscountPercentageChange}
+                                                className="bg-background border-border/50 focus-visible:ring-primary/50 h-12 text-base transition-all duration-300 hover:bg-muted/50"
+                                            />
+                                        </div>
+
+                                        <div className="grid gap-3 group/input">
+                                            <Label htmlFor="price" className="text-sm font-semibold tracking-wide text-foreground/80 group-focus-within/input:text-primary transition-colors">Selling Price (₹)</Label>
+                                            <Input
+                                                id="price"
+                                                type="number"
+                                                placeholder="0.00"
+                                                value={formData.price}
+                                                onChange={handlePriceChange}
+                                                required
+                                                className="bg-background border-border/50 focus-visible:ring-primary/50 h-12 text-base transition-all duration-300 hover:bg-muted/50"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="grid gap-3 group/input">
                                             <Label htmlFor="unit-value" className="text-sm font-semibold tracking-wide text-foreground/80 group-focus-within/input:text-primary transition-colors">Quantity</Label>
                                             <Input

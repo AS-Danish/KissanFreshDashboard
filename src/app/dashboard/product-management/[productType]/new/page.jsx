@@ -41,6 +41,8 @@ export default function AddNewProduct() {
     const [category, setCategory] = useState("");
     const [unit, setUnit] = useState("");
     const [unitValue, setUnitValue] = useState("1"); // Added quantity for units
+    const [mrp, setMrp] = useState("");
+    const [discountPercentage, setDiscountPercentage] = useState("");
     const [price, setPrice] = useState("");
     const [tags, setTags] = useState([]);
     const [images, setImages] = useState([]);
@@ -67,6 +69,36 @@ export default function AddNewProduct() {
         setTags(prev =>
             prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
         );
+    };
+
+    const handleMrpChange = (e) => {
+        const newMrp = e.target.value;
+        setMrp(newMrp);
+        if (newMrp && discountPercentage) {
+            setPrice((parseFloat(newMrp) - (parseFloat(newMrp) * parseFloat(discountPercentage) / 100)).toFixed(2));
+        } else if (newMrp && !discountPercentage) {
+            setPrice(newMrp);
+        }
+    };
+
+    const handleDiscountPercentageChange = (e) => {
+        const newPct = e.target.value;
+        setDiscountPercentage(newPct);
+        if (mrp && newPct) {
+            setPrice((parseFloat(mrp) - (parseFloat(mrp) * parseFloat(newPct) / 100)).toFixed(2));
+        } else if (!newPct) {
+            setPrice(mrp);
+        }
+    };
+
+    const handlePriceChange = (e) => {
+        const newPrice = e.target.value;
+        setPrice(newPrice);
+        if (mrp && newPrice && parseFloat(mrp) > 0) {
+            setDiscountPercentage(((parseFloat(mrp) - parseFloat(newPrice)) / parseFloat(mrp) * 100).toFixed(2));
+        } else if (!newPrice) {
+            setDiscountPercentage("");
+        }
     };
 
     const handleImageChange = (e) => {
@@ -104,6 +136,8 @@ export default function AddNewProduct() {
                 category,
                 unit,
                 unitValue: Number(unitValue) || 1,
+                mrp: parseFloat(mrp) || parseFloat(price),
+                discountPercentage: parseFloat(discountPercentage) || 0,
                 price: parseFloat(price),
                 tags,
                 images: imageUrls,
@@ -172,7 +206,36 @@ export default function AddNewProduct() {
 
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     <div className="grid gap-3 group/input">
-                                        <Label htmlFor="price" className="text-sm font-semibold tracking-wide text-foreground/80 group-focus-within/input:text-primary transition-colors">Price (₹)</Label>
+                                        <Label htmlFor="mrp" className="text-sm font-semibold tracking-wide text-foreground/80 group-focus-within/input:text-primary transition-colors">MRP (₹)</Label>
+                                        <Input
+                                            id="mrp"
+                                            type="number"
+                                            placeholder="0.00"
+                                            min="0"
+                                            step="0.01"
+                                            value={mrp}
+                                            onChange={handleMrpChange}
+                                            required
+                                            className="bg-background border-border/50 focus-visible:ring-primary/50 h-12 text-base transition-all duration-300 hover:bg-muted/50 font-medium"
+                                        />
+                                    </div>
+
+                                    <div className="grid gap-3 group/input">
+                                        <Label htmlFor="discountPercentage" className="text-sm font-semibold tracking-wide text-foreground/80 group-focus-within/input:text-primary transition-colors">Discount (%)</Label>
+                                        <Input
+                                            id="discountPercentage"
+                                            type="number"
+                                            placeholder="0"
+                                            min="0"
+                                            step="0.01"
+                                            value={discountPercentage}
+                                            onChange={handleDiscountPercentageChange}
+                                            className="bg-background border-border/50 focus-visible:ring-primary/50 h-12 text-base transition-all duration-300 hover:bg-muted/50 font-medium"
+                                        />
+                                    </div>
+
+                                    <div className="grid gap-3 group/input">
+                                        <Label htmlFor="price" className="text-sm font-semibold tracking-wide text-foreground/80 group-focus-within/input:text-primary transition-colors">Selling Price (₹)</Label>
                                         <Input
                                             id="price"
                                             type="number"
@@ -180,12 +243,14 @@ export default function AddNewProduct() {
                                             min="0"
                                             step="0.01"
                                             value={price}
-                                            onChange={(e) => setPrice(e.target.value)}
+                                            onChange={handlePriceChange}
                                             required
                                             className="bg-background border-border/50 focus-visible:ring-primary/50 h-12 text-base transition-all duration-300 hover:bg-muted/50 font-medium"
                                         />
                                     </div>
+                                </div>
 
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="grid gap-3 group/input">
                                         <Label htmlFor="unit-value" className="text-sm font-semibold tracking-wide text-foreground/80 group-focus-within/input:text-primary transition-colors">Quantity</Label>
                                         <Input

@@ -100,6 +100,21 @@ const data = {
       url: "/dashboard/category-management",
       icon: IconListDetails,
     },
+    {
+      title: "Coupon Management",
+      url: "/dashboard/coupon-management",
+      icon: IconReport,
+      items: [
+        {
+          title: "Kissan Fresh Coupons",
+          url: "/dashboard/coupon-management/kissan-fresh",
+        },
+        {
+          title: "Home Food Coupons",
+          url: "/dashboard/coupon-management/home-food",
+        },
+      ]
+    },
   ],
   navClouds: [
     {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import {
@@ -12,61 +12,28 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { IconPlus, IconTrash, IconCategory, IconLayoutCards, IconChefHat, IconShoppingBag } from "@tabler/icons-react"
+import { IconPlus, IconTrash, IconCategory, IconLayoutCards, IconChefHat, IconShoppingBag, IconSearch } from "@tabler/icons-react"
 import { toast } from "sonner"
 import { 
-    getCategories, 
     addCategory, 
     deleteCategory, 
-    getSections, 
     addSection, 
     deleteSection,
-    updateSectionRank,
-    subscribeToCategories,
-    subscribeToSections
+    updateSectionRank
 } from "@/services/categoryService"
 import { Checkbox } from "@/components/ui/checkbox"
+import { useCategory } from "@/context/CategoryContext";
 
 export default function CategoryManagementPage() {
-    const [categories, setCategories] = useState({ "home-food": [], "kissan-fresh": [] });
-    const [sections, setSections] = useState({ "home-food": [], "kissan-fresh": [] });
+    const { categories, sections, loading } = useCategory();
     
     // Form states
     const [newCategory, setNewCategory] = useState({ name: "", type: "home-food" });
     const [newSection, setNewSection] = useState({ name: "", type: "home-food", selectedCategories: [], rank: "" });
     
-    const [loading, setLoading] = useState(false);
-
-    useEffect(() => {
-        setLoading(true);
-        
-        // Listeners for categories
-        const unsubHfCats = subscribeToCategories("home-food", (cats) => {
-            setCategories(prev => ({ ...prev, "home-food": cats }));
-            setLoading(false);
-        });
-        
-        const unsubKfCats = subscribeToCategories("kissan-fresh", (cats) => {
-            setCategories(prev => ({ ...prev, "kissan-fresh": cats }));
-            setLoading(false);
-        });
-
-        // Listeners for sections
-        const unsubHfSecs = subscribeToSections("home-food", (secs) => {
-            setSections(prev => ({ ...prev, "home-food": secs }));
-        });
-
-        const unsubKfSecs = subscribeToSections("kissan-fresh", (secs) => {
-            setSections(prev => ({ ...prev, "kissan-fresh": secs }));
-        });
-
-        return () => {
-            unsubHfCats();
-            unsubKfCats();
-            unsubHfSecs();
-            unsubKfSecs();
-        };
-    }, []);
+    // Search states
+    const [hfSearch, setHfSearch] = useState("");
+    const [kfSearch, setKfSearch] = useState("");
 
     const handleAddCategory = async (type) => {
         if (!newCategory.name.trim()) return;
@@ -75,7 +42,6 @@ export default function CategoryManagementPage() {
             await addCategory(newCategory.name.trim(), type);
             toast.success("Category added successfully");
             setNewCategory({ ...newCategory, name: "" });
-            // No manual fetchData needed
         } catch (error) {
             toast.error("Failed to add category");
         }
@@ -85,7 +51,6 @@ export default function CategoryManagementPage() {
         try {
             await deleteCategory(id);
             toast.success("Success");
-            // No manual fetch needed
         } catch (error) {
             toast.error("Failed to delete category");
         }
@@ -107,7 +72,6 @@ export default function CategoryManagementPage() {
             );
             toast.success("Section added successfully");
             setNewSection({ name: "", type: "home-food", selectedCategories: [], rank: "" });
-            // No manual fetchData needed
         } catch (error) {
             toast.error("Failed to add section");
         }
@@ -117,7 +81,6 @@ export default function CategoryManagementPage() {
         try {
             await updateSectionRank(sectionId, Number(newRank), type);
             toast.success("Success");
-            // No manual fetch needed
         } catch (error) {
             toast.error("Failed to reorder sections");
         }
@@ -127,7 +90,6 @@ export default function CategoryManagementPage() {
         try {
             await deleteSection(id);
             toast.success("Success");
-            // No manual fetch needed
         } catch (error) {
             toast.error("Failed to delete section");
         }
@@ -184,6 +146,8 @@ export default function CategoryManagementPage() {
                                     onAdd={() => handleAddCategory("home-food")}
                                     onDelete={handleDeleteCategory}
                                     loading={loading}
+                                    searchValue={hfSearch}
+                                    onSearchChange={setHfSearch}
                                 />
 
                                 {/* Groceries Categories */}
@@ -197,6 +161,8 @@ export default function CategoryManagementPage() {
                                     onAdd={() => handleAddCategory("kissan-fresh")}
                                     onDelete={handleDeleteCategory}
                                     loading={loading}
+                                    searchValue={kfSearch}
+                                    onSearchChange={setKfSearch}
                                 />
                             </div>
                         </TabsContent>
@@ -241,7 +207,11 @@ export default function CategoryManagementPage() {
     )
 }
 
-function CategoryModule({ title, icon, list, inputValue, onInputChange, onAdd, onDelete, loading }) {
+function CategoryModule({ title, icon, list, inputValue, onInputChange, onAdd, onDelete, loading, searchValue, onSearchChange }) {
+    const filteredList = list.filter(cat => 
+        cat.name.toLowerCase().includes(searchValue.toLowerCase())
+    );
+
     return (
         <Card className="border-0 shadow-lg bg-card/50 backdrop-blur-sm">
             <CardHeader>
@@ -254,26 +224,45 @@ function CategoryModule({ title, icon, list, inputValue, onInputChange, onAdd, o
             <CardContent className="space-y-6">
                 <div className="flex gap-2">
                     <Input 
-                        placeholder="New category name..." 
+                        placeholder="Add new category..." 
                         value={inputValue}
                         onChange={(e) => onInputChange(e.target.value)}
-                        className="bg-background/50"
+                        className="bg-background/50 h-10"
                         onKeyDown={(e) => e.key === 'Enter' && onAdd()}
                     />
-                    <Button onClick={onAdd} size="icon" className="shrink-0">
+                    <Button onClick={onAdd} size="icon" className="shrink-0 h-10 w-10">
                         <IconPlus className="size-4" />
                     </Button>
                 </div>
 
-                <div className="space-y-2">
-                    <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Current Categories</Label>
-                    <div className="bg-muted/30 rounded-xl border border-border/50 divide-y divide-border/30 overflow-hidden">
-                        {list.length === 0 ? (
-                            <p className="p-8 text-center text-sm text-muted-foreground italic">No categories yet.</p>
+                <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                        <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Current Categories</Label>
+                        <div className="relative w-1/2">
+                            <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+                            <Input 
+                                placeholder="Search..." 
+                                value={searchValue}
+                                onChange={(e) => onSearchChange(e.target.value)}
+                                className="h-8 pl-8 text-xs bg-muted/50 border-none focus-visible:ring-1"
+                            />
+                        </div>
+                    </div>
+                    
+                    <div className="bg-muted/30 rounded-xl border border-border/50 divide-y divide-border/30 overflow-hidden max-h-[400px] overflow-y-auto custom-scrollbar">
+                        {loading && list.length === 0 ? (
+                             <div className="p-8 flex flex-col items-center gap-2">
+                                <div className="size-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+                                <p className="text-xs text-muted-foreground italic">Fetching categories...</p>
+                             </div>
+                        ) : filteredList.length === 0 ? (
+                            <p className="p-8 text-center text-sm text-muted-foreground italic">
+                                {searchValue ? "No categories matching your search." : "No categories yet."}
+                            </p>
                         ) : (
-                            list.map(cat => (
+                            filteredList.map(cat => (
                                 <div key={cat.id} className="flex items-center justify-between p-3 px-4 hover:bg-muted/50 transition-colors group">
-                                    <span className="font-medium">{cat.name}</span>
+                                    <span className="font-medium text-sm">{cat.name}</span>
                                     <Button 
                                         variant="ghost" 
                                         size="icon" 
@@ -293,6 +282,11 @@ function CategoryModule({ title, icon, list, inputValue, onInputChange, onAdd, o
 }
 
 function SectionModule({ title, type, categories, sections, newSection, setNewSection, onAdd, onDelete, onUpdateRank, onToggleCategory, loading }) {
+    const [search, setSearch] = useState("");
+    const filteredCategories = categories.filter(cat => 
+        cat.name.toLowerCase().includes(search.toLowerCase())
+    );
+
     return (
         <Card className="border-0 shadow-lg bg-card/50 backdrop-blur-sm">
             <CardHeader>
@@ -304,30 +298,41 @@ function SectionModule({ title, type, categories, sections, newSection, setNewSe
                 <div className="bg-muted/30 p-5 rounded-2xl border border-border/50 space-y-4">
                     <div className="grid grid-cols-4 gap-4">
                         <div className="col-span-3 space-y-2">
-                            <Label>Section Name</Label>
+                            <Label className="text-xs font-semibold">Section Name</Label>
                             <Input 
                                 placeholder="e.g. Best Sellers" 
                                 value={newSection.type === type ? newSection.name : ""}
                                 onChange={(e) => setNewSection({ ...newSection, name: e.target.value, type: type })}
-                                className="bg-background"
+                                className="bg-background h-10"
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label>Rank</Label>
+                            <Label className="text-xs font-semibold">Rank</Label>
                             <Input 
                                 type="number"
                                 placeholder="Auto" 
                                 value={newSection.type === type ? newSection.rank : ""}
                                 onChange={(e) => setNewSection({ ...newSection, rank: e.target.value, type: type })}
-                                className="bg-background"
+                                className="bg-background h-10"
                             />
                         </div>
                     </div>
                     
                     <div className="space-y-2">
-                        <Label>Select Categories</Label>
-                        <div className="flex flex-wrap gap-2 pt-1">
-                            {categories.map(cat => (
+                        <div className="flex items-center justify-between mb-1">
+                            <Label className="text-xs font-semibold">Select Categories ({newSection.type === type ? newSection.selectedCategories.length : 0})</Label>
+                            <div className="relative w-1/2">
+                                <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3 text-muted-foreground" />
+                                <Input 
+                                    placeholder="Filter..." 
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                    className="h-7 pl-8 text-[10px] bg-background border-none focus-visible:ring-1"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2 pt-1 max-h-[150px] overflow-y-auto p-1">
+                            {filteredCategories.map(cat => (
                                 <div 
                                     key={cat.id}
                                     onClick={() => {
@@ -335,20 +340,21 @@ function SectionModule({ title, type, categories, sections, newSection, setNewSe
                                         onToggleCategory(cat.name);
                                     }}
                                     className={`
-                                        flex items-center gap-2 px-3 py-1.5 rounded-full border cursor-pointer transition-all text-sm font-medium
+                                        flex items-center gap-2 px-3 py-1.5 rounded-full border cursor-pointer transition-all text-[11px] font-medium
                                         ${newSection.type === type && newSection.selectedCategories.includes(cat.name) 
-                                            ? "bg-primary border-primary text-primary-foreground shadow-md shadow-primary/20 scale-105" 
+                                            ? "bg-primary border-primary text-primary-foreground shadow-sm scale-105" 
                                             : "bg-background border-border hover:border-primary/50 text-muted-foreground"}
                                     `}
                                 >
                                     {cat.name}
                                 </div>
                             ))}
-                            {categories.length === 0 && <p className="text-sm text-muted-foreground italic px-1">Add categories first to create sections.</p>}
+                            {categories.length === 0 && <p className="text-xs text-muted-foreground italic px-1">Add categories first to create sections.</p>}
+                            {search && filteredCategories.length === 0 && <p className="text-xs text-muted-foreground italic px-1">No categories match.</p>}
                         </div>
                     </div>
 
-                    <Button className="w-full mt-2" onClick={onAdd} disabled={!categories.length}>
+                    <Button className="w-full mt-2 h-10 shadow-md shadow-primary/10" onClick={onAdd} disabled={!categories.length}>
                         <IconPlus className="size-4 mr-2" />
                         Create {type === 'home-food' ? 'Home Food' : 'Grocery'} Section
                     </Button>
@@ -362,9 +368,9 @@ function SectionModule({ title, type, categories, sections, newSection, setNewSe
                             <p className="p-8 text-center text-sm text-muted-foreground italic bg-muted/20 rounded-xl border border-dashed">No sections configured yet.</p>
                         ) : (
                             sections.map(sec => (
-                                <div key={sec.id} className="relative group overflow-hidden rounded-xl border border-border/50 bg-background/40 p-4 hover:border-primary/30 transition-all flex items-start gap-4">
+                                <div key={sec.id} className="relative group overflow-hidden rounded-xl border border-border/50 bg-background/40 p-4 hover:border-primary/30 transition-all flex items-start gap-4 shadow-sm hover:shadow-md">
                                     <div className="flex flex-col items-center gap-1">
-                                        <div className="size-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold shadow-sm">
+                                        <div className="size-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold shadow-sm text-sm">
                                             {sec.rank}
                                         </div>
                                         <div className="flex flex-col gap-0.5">
@@ -375,7 +381,7 @@ function SectionModule({ title, type, categories, sections, newSection, setNewSe
                                                 onClick={() => onUpdateRank(sec.id, Math.max(1, sec.rank - 1), type)}
                                                 disabled={sec.rank <= 1}
                                             >
-                                                <IconPlus className="size-3 rotate-45" /> {/* Using Plus rotated for Up Arrow feel if no actual up arrow */}
+                                                <IconPlus className="size-3 rotate-45" /> 
                                                 <span className="sr-only">Move Up</span>
                                             </Button>
                                             <Button 
@@ -393,15 +399,15 @@ function SectionModule({ title, type, categories, sections, newSection, setNewSe
                                     <div className="flex-1">
                                         <div className="flex justify-between items-start mb-2">
                                             <div>
-                                                <h4 className="font-bold text-lg">{sec.name}</h4>
-                                                <p className="text-xs text-muted-foreground">Contains {sec.categories?.length || 0} categories</p>
+                                                <h4 className="font-bold text-base">{sec.name}</h4>
+                                                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">Contains {sec.categories?.length || 0} categories</p>
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <div className="flex items-center gap-1 bg-muted px-2 py-1 rounded-md">
                                                     <span className="text-[10px] font-bold text-muted-foreground uppercase">Rank:</span>
                                                     <input 
                                                         type="number" 
-                                                        className="w-8 bg-transparent border-none p-0 text-xs font-bold focus:ring-0"
+                                                        className="w-8 bg-transparent border-none p-0 text-xs font-bold focus:ring-0 text-center"
                                                         defaultValue={sec.rank}
                                                         onBlur={(e) => {
                                                             const val = parseInt(e.target.value);
@@ -430,9 +436,9 @@ function SectionModule({ title, type, categories, sections, newSection, setNewSe
                                                 </Button>
                                             </div>
                                         </div>
-                                        <div className="flex flex-wrap gap-1.5">
+                                        <div className="flex flex-wrap gap-1.5 mt-2">
                                             {sec.categories?.map((cat, idx) => (
-                                                <span key={idx} className="px-2 py-0.5 rounded-md bg-muted text-[10px] font-bold uppercase text-muted-foreground">
+                                                <span key={idx} className="px-2 py-0.5 rounded-md bg-muted text-[9px] font-bold uppercase text-muted-foreground border border-border/20">
                                                     {cat}
                                                 </span>
                                             ))}

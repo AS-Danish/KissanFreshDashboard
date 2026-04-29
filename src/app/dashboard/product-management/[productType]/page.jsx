@@ -30,11 +30,10 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { IconEdit, IconTrash, IconSearch, IconChevronLeft, IconChevronRight } from "@tabler/icons-react"
+import { useCategory } from "@/context/CategoryContext";
+import { updateCatalogVersion } from "@/services/appConfigService";
 
 const ITEMS_PER_PAGE = 5;
-
-const KISSAN_FRESH_CATEGORIES = ["Fruits", "Vegetables", "Dairy", "Bakery", "Meat & Poultry", "Grains"];
-const HOME_FOOD_CATEGORIES = ["Pickles", "Spices", "Snacks", "Sweets", "Staples", "Meals"];
 
 const KISSAN_FRESH_TAGS = ["100% Organic", "Fresh", "Pure", "Farm-to-table", "Locally Sourced", "Vegan", "Gluten-Free"];
 const HOME_FOOD_TAGS = ["Homemade", "Preservative-free", "Traditional", "Authentic", "Mom's Recipe", "Spicy", "Healthy"];
@@ -42,8 +41,9 @@ const HOME_FOOD_TAGS = ["Homemade", "Preservative-free", "Traditional", "Authent
 export default function ProductManagement() {
     const params = useParams();
     const productType = params.productType; // "kissan-fresh" or "home-food"
+    const { categories } = useCategory();
 
-    const availableCategories = productType === 'home-food' ? HOME_FOOD_CATEGORIES : KISSAN_FRESH_CATEGORIES;
+    const availableCategories = categories[productType === 'home-food' ? 'home-food' : 'kissan-fresh'] || [];
     const availableTags = productType === 'home-food' ? HOME_FOOD_TAGS : KISSAN_FRESH_TAGS;
 
     const [products, setProducts] = useState([]);
@@ -77,12 +77,15 @@ export default function ProductManagement() {
         });
 
         return () => unsubscribe();
-    }, []);
+    }, [productType]);
 
     const handleDelete = async (id) => {
         if (window.confirm("Are you sure you want to delete this product?")) {
             try {
                 await deleteDoc(doc(db, "products", id));
+                
+                // Update catalog version for cache busting
+                await updateCatalogVersion();
             } catch (error) {
                 console.error("Error deleting document: ", error);
                 alert("Failed to delete product.");
@@ -96,7 +99,7 @@ export default function ProductManagement() {
             const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
 
             // Category Match
-            const matchesCategory = categoryFilter === "all" || product.category.toLowerCase() === categoryFilter.toLowerCase();
+            const matchesCategory = categoryFilter === "all" || (product.category && product.category.toLowerCase() === categoryFilter.toLowerCase());
 
             // Price Match
             let matchesPrice = true;
@@ -134,7 +137,7 @@ export default function ProductManagement() {
                             {productType === "home-food" ? "Home Food Products" : "Kissan Fresh Products"}
                         </h2>
                         <Link href={`/dashboard/product-management/${productType}/new`}>
-                            <Button>Add New Product</Button>
+                            <Button shadow="md">Add New Product</Button>
                         </Link>
                     </div>
 
@@ -144,27 +147,27 @@ export default function ProductManagement() {
                             <Input
                                 type="search"
                                 placeholder="Search products..."
-                                className="w-full pl-8"
+                                className="w-full pl-8 h-10"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                             />
                         </div>
                         <div className="w-full md:w-1/4">
                             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                                <SelectTrigger>
+                                <SelectTrigger className="h-10">
                                     <SelectValue placeholder="Category" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">All Categories</SelectItem>
                                     {availableCategories.map((cat) => (
-                                        <SelectItem key={cat} value={cat.toLowerCase()}>{cat}</SelectItem>
+                                        <SelectItem key={cat.id} value={cat.name.toLowerCase()}>{cat.name}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
                         </div>
                         <div className="w-full md:w-1/4">
                             <Select value={tagFilter} onValueChange={setTagFilter}>
-                                <SelectTrigger>
+                                <SelectTrigger className="h-10">
                                     <SelectValue placeholder="Tag" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -177,7 +180,7 @@ export default function ProductManagement() {
                         </div>
                         <div className="w-full md:w-1/4">
                             <Select value={priceFilter} onValueChange={setPriceFilter}>
-                                <SelectTrigger>
+                                <SelectTrigger className="h-10">
                                     <SelectValue placeholder="Price" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -190,62 +193,79 @@ export default function ProductManagement() {
                         </div>
                     </div>
 
-                    <div className="rounded-md border bg-card overflow-hidden">
+                    <div className="rounded-xl border bg-card/50 backdrop-blur-sm overflow-hidden shadow-sm">
                         <Table>
                             <TableHeader>
-                                <TableRow>
+                                <TableRow className="hover:bg-transparent">
                                     <TableHead className="w-[80px]">Image</TableHead>
-                                    <TableHead>Product Name</TableHead>
-                                    <TableHead>Category</TableHead>
-                                    <TableHead>Description</TableHead>
-                                    <TableHead>Price</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
+                                    <TableHead className="font-semibold text-foreground/80">Product Name</TableHead>
+                                    <TableHead className="font-semibold text-foreground/80">Category</TableHead>
+                                    <TableHead className="font-semibold text-foreground/80">Description</TableHead>
+                                    <TableHead className="font-semibold text-foreground/80">Price</TableHead>
+                                    <TableHead className="text-right font-semibold text-foreground/80">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {loading ? (
                                     <TableRow>
-                                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                                            Loading products...
+                                        <TableCell colSpan={6} className="text-center py-20">
+                                            <div className="flex flex-col items-center gap-3">
+                                                <div className="h-8 w-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+                                                <p className="text-sm text-muted-foreground font-medium italic">Loading products...</p>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ) : paginatedProducts.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                                            No products found matching your filters.
+                                        <TableCell colSpan={6} className="text-center py-20 text-muted-foreground">
+                                            <div className="flex flex-col items-center gap-2">
+                                                <IconSearch className="size-8 opacity-20" />
+                                                <p className="font-medium">No products found matching your filters.</p>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ) : (
                                     paginatedProducts.map((product) => (
-                                        <TableRow key={product.id}>
+                                        <TableRow key={product.id} className="group hover:bg-muted/50 transition-colors">
                                             <TableCell>
-                                                <div className="relative h-12 w-12 overflow-hidden rounded-md border flex items-center justify-center bg-muted">
+                                                <div className="relative h-12 w-12 overflow-hidden rounded-lg border flex items-center justify-center bg-muted/30 shadow-inner group-hover:border-primary/30 transition-colors">
                                                     {product.images && product.images.length > 0 ? (
                                                         <Image
                                                             src={product.images[0]}
                                                             alt={product.name}
                                                             fill
-                                                            className="object-cover"
+                                                            className="object-cover group-hover:scale-110 transition-transform duration-500"
                                                         />
                                                     ) : (
-                                                        <span className="text-[10px] text-muted-foreground w-full text-center">No Img</span>
+                                                        <span className="text-[10px] text-muted-foreground w-full text-center font-bold uppercase p-1">No Img</span>
                                                     )}
                                                 </div>
                                             </TableCell>
                                             <TableCell className="font-medium">
-                                                <Link href={`/dashboard/product-management/${productType}/${product.id}`} className="hover:underline text-primary">
+                                                <Link href={`/dashboard/product-management/${productType}/${product.id}`} className="hover:underline text-primary/90 hover:text-primary transition-colors">
                                                     {product.name}
                                                 </Link>
                                             </TableCell>
-                                            <TableCell>{product.category}</TableCell>
-                                            <TableCell className="max-w-[200px] truncate" title={product.description}>
-                                                {product.description?.length > 50 ? `${product.description.substring(0, 50)}...` : product.description}
+                                            <TableCell>
+                                                <span className="px-2 py-0.5 rounded-md bg-muted/50 text-[10px] font-bold uppercase tracking-tight text-muted-foreground group-hover:bg-primary/5 group-hover:text-primary/70 transition-colors">
+                                                    {product.category || "Uncategorized"}
+                                                </span>
                                             </TableCell>
-                                            <TableCell>₹{Number(product.price).toFixed(2)}</TableCell>
+                                            <TableCell className="max-w-[200px] truncate" title={product.description}>
+                                                <p className="text-sm text-muted-foreground/80 leading-relaxed">
+                                                    {product.description?.length > 50 ? `${product.description.substring(0, 50)}...` : product.description}
+                                                </p>
+                                            </TableCell>
+                                            <TableCell className="font-bold text-foreground/80">
+                                                ₹{Number(product.price).toFixed(2)}
+                                                <span className="text-[10px] text-muted-foreground ml-1 font-normal uppercase italic">
+                                                    {product.unitValue && Number(product.unitValue) > 1 ? ` for ${product.unitValue}${product.unit}` : `/ ${product.unit || 'pc'}`}
+                                                </span>
+                                            </TableCell>
                                             <TableCell className="text-right">
-                                                <div className="flex justify-end gap-2">
+                                                <div className="flex justify-end gap-1">
                                                     <Link href={`/dashboard/product-management/${productType}/edit/${product.id}`}>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary">
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all">
                                                             <IconEdit className="h-4 w-4" />
                                                             <span className="sr-only">Edit</span>
                                                         </Button>
@@ -253,7 +273,7 @@ export default function ProductManagement() {
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
                                                         onClick={() => handleDelete(product.id)}
                                                     >
                                                         <IconTrash className="h-4 w-4" />
@@ -270,21 +290,22 @@ export default function ProductManagement() {
 
                     {/* Pagination Controls */}
                     {totalPages > 1 && (
-                        <div className="flex items-center justify-between border-t border-b py-3 px-2">
-                            <div className="text-sm text-muted-foreground">
+                        <div className="flex items-center justify-between border-t border-b py-4 px-2 mt-2">
+                            <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
                                 Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, filteredProducts.length)} of {filteredProducts.length} entries
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-4">
                                 <Button
                                     variant="outline"
                                     size="sm"
                                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                     disabled={currentPage === 1}
+                                    className="h-8 shadow-sm"
                                 >
-                                    <IconChevronLeft className="h-4 w-4 mr-1" />
+                                    <IconChevronLeft className="h-4 w-4 mr-1.5" />
                                     Previous
                                 </Button>
-                                <div className="text-sm font-medium">
+                                <div className="text-xs font-bold bg-muted/50 px-3 py-1.5 rounded-md border text-muted-foreground">
                                     Page {currentPage} of {totalPages}
                                 </div>
                                 <Button
@@ -292,9 +313,10 @@ export default function ProductManagement() {
                                     size="sm"
                                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                                     disabled={currentPage === totalPages}
+                                    className="h-8 shadow-sm"
                                 >
                                     Next
-                                    <IconChevronRight className="h-4 w-4 ml-1" />
+                                    <IconChevronRight className="h-4 w-4 ml-1.5" />
                                 </Button>
                             </div>
                         </div>

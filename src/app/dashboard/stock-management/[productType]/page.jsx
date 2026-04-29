@@ -31,10 +31,10 @@ import {
 } from "@/components/ui/table"
 import { IconSearch, IconChevronLeft, IconChevronRight, IconEdit, IconCheck, IconX } from "@tabler/icons-react"
 
-const ITEMS_PER_PAGE = 5;
+import { useCategory } from "@/context/CategoryContext";
+import { updateCatalogVersion } from "@/services/appConfigService";
 
-const KISSAN_FRESH_CATEGORIES = ["Fruits", "Vegetables", "Dairy", "Bakery", "Meat & Poultry", "Grains"];
-const HOME_FOOD_CATEGORIES = ["Pickles", "Spices", "Snacks", "Sweets", "Staples", "Meals"];
+const ITEMS_PER_PAGE = 5;
 
 // Custom hook for debouncing search query
 function useDebounce(value, delay) {
@@ -57,7 +57,8 @@ export default function StockManagement() {
     const params = useParams();
     const productType = params.productType; // "kissan-fresh" or "home-food"
 
-    const availableCategories = productType === 'home-food' ? HOME_FOOD_CATEGORIES : KISSAN_FRESH_CATEGORIES;
+    const { categories } = useCategory();
+    const availableCategories = categories[productType === 'home-food' ? 'home-food' : 'kissan-fresh'] || [];
 
     const [products, setProducts] = useState([]);
     const [searchQuery, setSearchQuery] = useState("");
@@ -116,6 +117,10 @@ export default function StockManagement() {
                 inStock: Number(editStockValue) > 0, // optionally derive inStock flag here
                 updatedAt: new Date().toISOString()
             });
+            
+            // Update catalog version for cache busting
+            await updateCatalogVersion();
+            
             setEditingProductId(null);
         } catch (error) {
             console.error("Error updating stock: ", error);
@@ -180,7 +185,7 @@ export default function StockManagement() {
                                 <SelectContent>
                                     <SelectItem value="all">All Categories</SelectItem>
                                     {availableCategories.map((cat) => (
-                                        <SelectItem key={cat} value={cat.toLowerCase()}>{cat}</SelectItem>
+                                        <SelectItem key={cat.id} value={cat.name.toLowerCase()}>{cat.name}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
@@ -240,7 +245,12 @@ export default function StockManagement() {
                                                     {product.name}
                                                 </TableCell>
                                                 <TableCell className="text-muted-foreground">{product.category}</TableCell>
-                                                <TableCell className="font-medium">₹{Number(product.price).toFixed(2)}</TableCell>
+                                                <TableCell className="font-medium whitespace-nowrap">
+                                                    ₹{Number(product.price).toFixed(2)}
+                                                    <span className="text-[10px] text-muted-foreground ml-1 font-normal italic uppercase">
+                                                        {product.unitValue && Number(product.unitValue) > 1 ? ` for ${product.unitValue}${product.unit}` : ` / ${product.unit || 'pc'}`}
+                                                    </span>
+                                                </TableCell>
 
                                                 <TableCell className="text-center">
                                                     {isEditing ? (

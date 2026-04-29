@@ -12,6 +12,7 @@ import {
   onSnapshot
 } from "firebase/firestore";
 import { db } from "../firebase/config";
+import { updateCatalogVersion } from "./appConfigService";
 
 const CATEGORIES_COLLECTION = "categories";
 const SECTIONS_COLLECTION = "sections";
@@ -76,6 +77,10 @@ export const addCategory = async (name, type) => {
       type,
       createdAt: serverTimestamp()
     });
+    
+    // Update catalog version for cache busting
+    await updateCatalogVersion();
+    
     return { id: docRef.id, success: true };
   } catch (error) {
     console.error("Error adding category:", error);
@@ -91,6 +96,10 @@ export const deleteCategory = async (id) => {
   try {
     const docRef = doc(db, CATEGORIES_COLLECTION, id);
     await deleteDoc(docRef);
+    
+    // Update catalog version for cache busting
+    await updateCatalogVersion();
+    
     return { success: true };
   } catch (error) {
     console.error("Error deleting category:", error);
@@ -175,6 +184,10 @@ export const addSection = async (name, type, categories, rank) => {
       rank: Number(finalRank),
       createdAt: serverTimestamp()
     });
+    
+    // Update catalog version for cache busting
+    await updateCatalogVersion();
+    
     return { id: docRef.id, success: true };
   } catch (error) {
     console.error("Error adding section:", error);
@@ -236,6 +249,10 @@ export const updateSectionRank = async (sectionId, newRank, type) => {
     });
 
     await batch.commit();
+    
+    // Update catalog version for cache busting
+    await updateCatalogVersion();
+    
     return { success: true };
   } catch (error) {
     console.error("Error updating section rank:", error);
@@ -251,6 +268,10 @@ export const deleteSection = async (id) => {
   try {
     const docRef = doc(db, SECTIONS_COLLECTION, id);
     await deleteDoc(docRef);
+    
+    // Update catalog version for cache busting
+    await updateCatalogVersion();
+    
     return { success: true };
   } catch (error) {
     console.error("Error deleting section:", error);

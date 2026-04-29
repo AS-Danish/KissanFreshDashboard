@@ -25,8 +25,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { IconSearch, IconArrowLeft, IconCheck } from "@tabler/icons-react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 
-const KISSAN_FRESH_CATEGORIES = ["Fruits", "Vegetables", "Dairy", "Bakery", "Meat & Poultry", "Grains"];
-const HOME_FOOD_CATEGORIES = ["Pickles", "Spices", "Snacks", "Sweets", "Staples", "Meals"];
+import { useCategory } from "@/context/CategoryContext";
+import { updateCatalogVersion } from "@/services/appConfigService";
 
 // Custom hook for debouncing search query
 function useDebounce(value, delay) {
@@ -50,7 +50,8 @@ export default function BulkAddStock() {
     const router = useRouter();
     const productType = params.productType; // "kissan-fresh" or "home-food"
 
-    const availableCategories = productType === 'home-food' ? HOME_FOOD_CATEGORIES : KISSAN_FRESH_CATEGORIES;
+    const { categories } = useCategory();
+    const availableCategories = categories[productType === 'home-food' ? 'home-food' : 'kissan-fresh'] || [];
 
     const [products, setProducts] = useState([]);
     const [searchQuery, setSearchQuery] = useState("");
@@ -140,6 +141,10 @@ export default function BulkAddStock() {
             });
 
             await Promise.all(updatePromises);
+            
+            // Update catalog version for cache busting
+            await updateCatalogVersion();
+            
             alert(`Successfully added stock to ${productIds.length} products!`);
             router.push(`/dashboard/stock-management/${productType}`);
         } catch (error) {
@@ -202,7 +207,7 @@ export default function BulkAddStock() {
                                                 <SelectContent>
                                                     <SelectItem value="all">All Categories</SelectItem>
                                                     {availableCategories.map((cat) => (
-                                                        <SelectItem key={cat} value={cat.toLowerCase()}>{cat}</SelectItem>
+                                                        <SelectItem key={cat.id} value={cat.name.toLowerCase()}>{cat.name}</SelectItem>
                                                     ))}
                                                 </SelectContent>
                                             </Select>
@@ -311,7 +316,9 @@ export default function BulkAddStock() {
                                                         </div>
                                                         <div className="flex-1 min-w-0">
                                                             <p className="font-semibold text-sm truncate text-foreground">{entry.product.name}</p>
-                                                            <p className="text-xs text-muted-foreground">Current: {currentStock}</p>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                Current: {currentStock} <span className="italic opacity-70">({entry.product.unitValue && Number(entry.product.unitValue) > 1 ? `${entry.product.unitValue}${entry.product.unit}` : `${entry.product.unit || 'pc'}`})</span>
+                                                            </p>
                                                         </div>
                                                         <div className="flex items-center gap-2">
                                                             <span className="text-xs font-medium text-muted-foreground">+</span>

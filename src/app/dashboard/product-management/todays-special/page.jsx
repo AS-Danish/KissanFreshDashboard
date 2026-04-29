@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/table"
 import { IconSearch, IconChevronLeft, IconChevronRight, IconStarFilled, IconStar } from "@tabler/icons-react"
 import { toast } from "sonner"
+import { updateCatalogVersion } from "@/services/appConfigService";
 
 const ITEMS_PER_PAGE = 5;
 const HOME_FOOD_CATEGORIES = ["Pickles", "Spices", "Snacks", "Sweets", "Staples", "Meals"];
@@ -123,6 +124,10 @@ export default function TodaysSpecial() {
                 specials: newSpecials,
                 updatedAt: new Date().toISOString()
             });
+            
+            // Update catalog version for cache busting
+            await updateCatalogVersion();
+            
             toast.success(isSpecial ? "Removed from Today's Special" : "Added to Today's Special");
         } catch (error) {
             console.error("Error saving specials:", error);

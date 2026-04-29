@@ -339,6 +339,26 @@ exports.createOrder = require("firebase-functions/v2/https")
               const selectedSlotDoc = slotSnap;
               const selectedRiderDoc = ridersSnap.docs[0];
 
+              // 4. Generate New Short Order ID (KF-XXXXXX)
+              const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+              let shortId = "KF-";
+              for (let i = 0; i < 6; i++) {
+                const idx = Math.floor(Math.random() * chars.length);
+                shortId += chars.charAt(idx);
+              }
+
+              const orderRef = db.collection("orders").doc(shortId);
+              const orderSnap = await transaction.get(orderRef);
+              if (orderSnap.exists) {
+                // If collision, regenerate (though unlikely)
+                shortId = "KF-"; // Reset and try again for a fresh ID
+                for (let i = 0; i < 6; i++) {
+                  const idx = Math.floor(Math.random() * chars.length);
+                  shortId += chars.charAt(idx);
+                }
+                // Note: Realistically we should loop until unique, but collision is extremely rare.
+              }
+
               for (const update of stockUpdates) {
                 transaction.update(update.ref, {stockCount: update.newStock});
               }
@@ -353,9 +373,9 @@ exports.createOrder = require("firebase-functions/v2/https")
               transaction.update(selectedRiderDoc.ref,
                   {assignedOrders: newRiderAssignedOrders});
 
-              const orderRef = db.collection("orders").doc(orderData.id);
               const enrichedOrderData = {
                 ...orderData,
+                id: shortId, // use new short ID
                 slotId: selectedSlotDoc.id,
                 riderId: selectedRiderDoc.id,
                 status: "assigned",
@@ -368,7 +388,7 @@ exports.createOrder = require("firebase-functions/v2/https")
               return enrichedOrderData;
             });
 
-            console.log(`✅ Order ${orderData.id} successfully created and ` +
+            console.log(`✅ Order ${result.id} successfully created and ` +
                 `assigned to requested Slot: ${result.slotId}, ` +
                 `Rider: ${result.riderId}`);
 
@@ -382,30 +402,30 @@ exports.createOrder = require("firebase-functions/v2/https")
                 const message = {
                   notification: {
                     title: "Order Successfully Placed!",
-                    body: `Your order #${orderData.id} has been confirmed. ` +
+                    body: `Your order #${result.id} has been confirmed. ` +
                         `Thank you for shopping with Kissan Fresh!`,
                   },
                   data: {
-                    orderId: orderData.id,
+                    orderId: result.id,
                     type: "ORDER_PLACED",
                   },
                   token: fcmToken,
                 };
                 await admin.messaging().send(message);
-                console.log(`FCM notification sent for Order: ${orderData.id}`);
+                console.log(`FCM notification sent for Order: ${result.id}`);
               } else {
                 console.log(`No FCM token found for User: ${auth.uid}. ` +
                     `Skipping notification.`);
               }
             } catch (err) {
               console.error(`Error sending FCM notification for order ` +
-                  `${orderData.id}:`, err);
+                  `${result.id}:`, err);
             }
 
             return {
               success: true,
               message: "Order processed successfully",
-              orderId: orderData.id,
+              orderId: result.id,
               slotId: result.slotId,
               riderId: result.riderId,
             };

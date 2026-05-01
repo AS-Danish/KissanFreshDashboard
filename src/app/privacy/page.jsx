@@ -3,8 +3,8 @@ import Link from "next/link";
 import { IconArrowLeft } from "@tabler/icons-react";
 
 export const metadata = {
-  title: "Privacy Policy | Kissan Fresh",
-  description: "Privacy Policy for Kissan Fresh website and mobile application.",
+  title: "Privacy Policy for KFTEST",
+  description: "Privacy Policy for KFTEST mobile application and related services.",
 };
 
 export default function PrivacyPolicy() {
@@ -23,7 +23,7 @@ export default function PrivacyPolicy() {
         
         <header className="mb-12">
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4 text-zinc-950 dark:text-white">
-            Privacy Policy
+            Privacy Policy for KFTEST
           </h1>
           <p className="text-zinc-500 dark:text-zinc-400">
             Last Updated: {lastUpdated}
@@ -34,10 +34,7 @@ export default function PrivacyPolicy() {
           <section>
             <h2 className="text-2xl font-semibold mb-4 text-zinc-900 dark:text-zinc-100">1. Introduction</h2>
             <p className="leading-relaxed">
-              Welcome to Kissan Fresh. We value your privacy and are committed to protecting your personal data. 
-              This Privacy Policy explains how we collect, use, and safeguard your information when you visit our website 
-              and use our mobile application ("App"). Kissan Fresh is an e-commerce platform specializing in fresh produce 
-              and home food products.
+              This Privacy Policy applies to KFTEST (package name: com.kissanfresh.app), operated by Abdul Salaam Danish under the Kissan Fresh brand. This policy explains how we collect, use, disclose, and protect your information when you use our mobile application and related services.
             </p>
           </section>
 
@@ -58,28 +55,25 @@ export default function PrivacyPolicy() {
               <div className="bg-white dark:bg-zinc-900 p-4 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-800">
                 <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-2">Location Services</h3>
                 <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                  We use your location to calculate delivery distances, provide accurate delivery estimates, 
-                  and help our riders navigate to your address efficiently.
+                  Location is used only for delivery-related services and address verification.
                 </p>
               </div>
               <div className="bg-white dark:bg-zinc-900 p-4 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-800">
                 <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-2">Microphone</h3>
                 <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                  The microphone permission is used for voice-based search within the app and to facilitate 
-                  direct communication with our customer support or delivery team.
+                  Microphone is used only when the user actively uses voice search and is never used for background recording.
                 </p>
               </div>
               <div className="bg-white dark:bg-zinc-900 p-4 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-800">
                 <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-2">Camera & Media</h3>
                 <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                  Used for setting up profile pictures, scanning QR codes, or uploading photos for quality 
-                  disputes or receipt verification.
+                  Access is only used when the user uploads images, scans QR codes, or updates profile pictures.
                 </p>
               </div>
               <div className="bg-white dark:bg-zinc-900 p-4 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-800">
                 <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-2">Notifications</h3>
                 <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                  To keep you updated on order status, delivery progress, and exclusive offers.
+                  Notifications are used for order updates, delivery tracking, and promotional alerts.
                 </p>
               </div>
             </div>
@@ -107,7 +101,14 @@ export default function PrivacyPolicy() {
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold mb-4 text-zinc-900 dark:text-zinc-100">6. Data Security</h2>
+            <h2 className="text-2xl font-semibold mb-4 text-zinc-900 dark:text-zinc-100">6. Third-Party Services</h2>
+            <p className="leading-relaxed">
+              We may use third-party services such as Firebase for authentication, push notifications, analytics, and cloud storage, and payment gateways for secure transaction processing.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-semibold mb-4 text-zinc-900 dark:text-zinc-100">7. Data Security</h2>
             <p className="leading-relaxed">
               We implement industry-standard security measures, including encryption and secure protocols, 
               to protect your personal information from unauthorized access, disclosure, or alteration.
@@ -115,14 +116,13 @@ export default function PrivacyPolicy() {
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold mb-4 text-zinc-900 dark:text-zinc-100">7. Your Rights</h2>
+            <h2 className="text-2xl font-semibold mb-4 text-zinc-900 dark:text-zinc-100">8. Your Rights</h2>
             <p className="leading-relaxed mb-4">
               You have the right to access, update, or request the deletion of your personal information. 
               You can manage most of your data directly through your account settings in the App or Website.
             </p>
             <p className="leading-relaxed">
-              For detailed instructions on how to delete your account, please visit our 
-              <Link href="/delete-account" className="text-green-600 hover:underline mx-1">Account Deletion Guide</Link>.
+              For account deletion requests, users can use the in-app account settings or contact support at <a href="mailto:support@kissanfresh.com" className="text-green-600 hover:underline">support@kissanfresh.com</a>.
             </p>
           </section>
 

@@ -2,29 +2,29 @@ const admin = require("firebase-admin");
 const serviceAccount = require("./service-account.json");
 
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
+  credential: admin.credential.cert(serviceAccount),
 });
 
 const db = admin.firestore();
 
 const CATEGORIES = [
   // --- Kissan Fresh (Groceries) ---
-  { name: "Fresh Vegetables", type: "kissan-fresh" },
-  { name: "Exotic Fruits", type: "kissan-fresh" },
-  { name: "Farm Dairy", type: "kissan-fresh" },
-  { name: "Poultry & Meat", type: "kissan-fresh" },
-  { name: "Spices & Pantry", type: "kissan-fresh" },
-  { name: "Organic Grains", type: "kissan-fresh" },
-  { name: "Beverages & Juices", type: "kissan-fresh" },
-  
+  {name: "Fresh Vegetables", type: "kissan-fresh"},
+  {name: "Exotic Fruits", type: "kissan-fresh"},
+  {name: "Farm Dairy", type: "kissan-fresh"},
+  {name: "Poultry & Meat", type: "kissan-fresh"},
+  {name: "Spices & Pantry", type: "kissan-fresh"},
+  {name: "Organic Grains", type: "kissan-fresh"},
+  {name: "Beverages & Juices", type: "kissan-fresh"},
+
   // --- Home Food ---
-  { name: "Traditional Thalis", type: "home-food" },
-  { name: "Biryani & Rice", type: "home-food" },
-  { name: "North Indian Curries", type: "home-food" },
-  { name: "South Indian Specialties", type: "home-food" },
-  { name: "Tandoor & Starters", type: "home-food" },
-  { name: "Traditional Sweets", type: "home-food" },
-  { name: "Street Food Snacks", type: "home-food" }
+  {name: "Traditional Thalis", type: "home-food"},
+  {name: "Biryani & Rice", type: "home-food"},
+  {name: "North Indian Curries", type: "home-food"},
+  {name: "South Indian Specialties", type: "home-food"},
+  {name: "Tandoor & Starters", type: "home-food"},
+  {name: "Traditional Sweets", type: "home-food"},
+  {name: "Street Food Snacks", type: "home-food"},
 ];
 
 const PRODUCTS = [
@@ -40,7 +40,7 @@ const PRODUCTS = [
     images: ["https://images.pexels.com/photos/1327838/pexels-photo-1327838.jpeg"],
     inStock: true,
     productOrigin: "kissan-fresh",
-    stockCount: 50
+    stockCount: 50,
   },
   {
     name: "Premium Alphonso Mangoes",
@@ -52,11 +52,11 @@ const PRODUCTS = [
     tags: ["Fresh", "Locally Sourced"],
     images: [
       "https://images.pexels.com/photos/2294477/pexels-photo-2294477.jpeg",
-      "https://images.pexels.com/photos/616833/pexels-photo-616833.jpeg"
+      "https://images.pexels.com/photos/616833/pexels-photo-616833.jpeg",
     ],
     inStock: true,
     productOrigin: "kissan-fresh",
-    stockCount: 20
+    stockCount: 20,
   },
   {
     name: "Pure A2 Cow Milk",
@@ -69,7 +69,7 @@ const PRODUCTS = [
     images: ["https://images.pexels.com/photos/248412/pexels-photo-248412.jpeg"],
     inStock: true,
     productOrigin: "kissan-fresh",
-    stockCount: 100
+    stockCount: 100,
   },
   {
     name: "Cleaned Chicken Breast (Skinless)",
@@ -82,7 +82,7 @@ const PRODUCTS = [
     images: ["https://images.pexels.com/photos/616327/pexels-photo-616327.jpeg"],
     inStock: true,
     productOrigin: "kissan-fresh",
-    stockCount: 15
+    stockCount: 15,
   },
   {
     name: "Natural Kandahari Pomegranate",
@@ -95,7 +95,7 @@ const PRODUCTS = [
     images: ["https://images.pexels.com/photos/1590111/pexels-photo-1590111.jpeg"],
     inStock: true,
     productOrigin: "kissan-fresh",
-    stockCount: 40
+    stockCount: 40,
   },
   {
     name: "Cold-Pressed Desi Ghee",
@@ -108,7 +108,7 @@ const PRODUCTS = [
     images: ["https://images.pexels.com/photos/8105151/pexels-photo-8105151.jpeg"],
     inStock: true,
     productOrigin: "kissan-fresh",
-    stockCount: 30
+    stockCount: 30,
   },
   {
     name: "Pure Turmeric Powder",
@@ -121,7 +121,7 @@ const PRODUCTS = [
     images: ["https://images.pexels.com/photos/674483/pexels-photo-674483.jpeg"],
     inStock: true,
     productOrigin: "kissan-fresh",
-    stockCount: 100
+    stockCount: 100,
   },
   {
     name: "Traditional Basmati Rice",
@@ -134,7 +134,7 @@ const PRODUCTS = [
     images: ["https://images.pexels.com/photos/4110255/pexels-photo-4110255.jpeg"],
     inStock: true,
     productOrigin: "kissan-fresh",
-    stockCount: 25
+    stockCount: 25,
   },
   {
     name: "Farm Fresh Brown Eggs (6pcs)",
@@ -147,7 +147,7 @@ const PRODUCTS = [
     images: ["https://images.pexels.com/photos/162712/egg-white-food-shell-162712.jpeg"],
     inStock: true,
     productOrigin: "kissan-fresh",
-    stockCount: 40
+    stockCount: 40,
   },
   {
     name: "Alphonso Mango Pulp (Tin)",
@@ -160,7 +160,7 @@ const PRODUCTS = [
     images: ["https://images.pexels.com/photos/616833/pexels-photo-616833.jpeg"],
     inStock: true,
     productOrigin: "kissan-fresh",
-    stockCount: 35
+    stockCount: 35,
   },
 
   // --- Home Food ---
@@ -174,11 +174,11 @@ const PRODUCTS = [
     tags: ["Homemade", "Authentic", "Healthy"],
     images: [
       "https://images.pexels.com/photos/2474661/pexels-photo-2474661.jpeg",
-      "https://images.pexels.com/photos/1624487/pexels-photo-1624487.jpeg"
+      "https://images.pexels.com/photos/1624487/pexels-photo-1624487.jpeg",
     ],
     inStock: true,
     productOrigin: "home-food",
-    stockCount: 15
+    stockCount: 15,
   },
   {
     name: "Hyderabadi Chicken Biryani",
@@ -190,11 +190,11 @@ const PRODUCTS = [
     tags: ["Homemade", "Authentic", "Spicy"],
     images: [
       "https://images.pexels.com/photos/12737651/pexels-photo-12737651.jpeg",
-      "https://images.pexels.com/photos/10106511/pexels-photo-10106511.jpeg"
+      "https://images.pexels.com/photos/10106511/pexels-photo-10106511.jpeg",
     ],
     inStock: true,
     productOrigin: "home-food",
-    stockCount: 10
+    stockCount: 10,
   },
   {
     name: "Butter Chicken (Classic)",
@@ -207,7 +207,7 @@ const PRODUCTS = [
     images: ["https://images.pexels.com/photos/1624487/pexels-photo-1624487.jpeg"],
     inStock: true,
     productOrigin: "home-food",
-    stockCount: 12
+    stockCount: 12,
   },
   {
     name: "Classic Paneer Butter Masala",
@@ -220,7 +220,7 @@ const PRODUCTS = [
     images: ["https://images.pexels.com/photos/3928854/pexels-photo-3928854.jpeg"],
     inStock: true,
     productOrigin: "home-food",
-    stockCount: 18
+    stockCount: 18,
   },
   {
     name: "Masala Dosa Combo",
@@ -233,7 +233,7 @@ const PRODUCTS = [
     images: ["https://images.pexels.com/photos/5560763/pexels-photo-5560763.jpeg"],
     inStock: true,
     productOrigin: "home-food",
-    stockCount: 20
+    stockCount: 20,
   },
   {
     name: "Assorted Tandoori Platter",
@@ -245,11 +245,11 @@ const PRODUCTS = [
     tags: ["Homemade", "Tandoor", "Protein-Packed"],
     images: [
       "https://images.pexels.com/photos/10106511/pexels-photo-10106511.jpeg",
-      "https://images.pexels.com/photos/12737651/pexels-photo-12737651.jpeg"
+      "https://images.pexels.com/photos/12737651/pexels-photo-12737651.jpeg",
     ],
     inStock: true,
     productOrigin: "home-food",
-    stockCount: 8
+    stockCount: 8,
   },
   {
     name: "Paneer Tikka (8pcs)",
@@ -262,7 +262,7 @@ const PRODUCTS = [
     images: ["https://images.pexels.com/photos/3928854/pexels-photo-3928854.jpeg"],
     inStock: true,
     productOrigin: "home-food",
-    stockCount: 15
+    stockCount: 15,
   },
   {
     name: "Dal Makhani (Slow Cooked)",
@@ -275,7 +275,7 @@ const PRODUCTS = [
     images: ["https://images.pexels.com/photos/2474661/pexels-photo-2474661.jpeg"],
     inStock: true,
     productOrigin: "home-food",
-    stockCount: 20
+    stockCount: 20,
   },
   {
     name: "Crispy Veg Samosas (4pcs)",
@@ -288,7 +288,7 @@ const PRODUCTS = [
     images: ["https://images.pexels.com/photos/4441065/pexels-photo-4441065.jpeg"],
     inStock: true,
     productOrigin: "home-food",
-    stockCount: 30
+    stockCount: 30,
   },
   {
     name: "Special Gulab Jamun (4pcs)",
@@ -301,7 +301,7 @@ const PRODUCTS = [
     images: ["https://images.pexels.com/photos/14068564/pexels-photo-14068564.jpeg"],
     inStock: true,
     productOrigin: "home-food",
-    stockCount: 25
+    stockCount: 25,
   },
   {
     name: "Creamy Mango Lassi",
@@ -314,8 +314,8 @@ const PRODUCTS = [
     images: ["https://images.pexels.com/photos/616833/pexels-photo-616833.jpeg"],
     inStock: true,
     productOrigin: "home-food",
-    stockCount: 50
-  }
+    stockCount: 50,
+  },
 ];
 
 async function populate() {
@@ -326,14 +326,14 @@ async function populate() {
     console.log("\n📦 Adding Categories...");
     for (const cat of CATEGORIES) {
       const existing = await db.collection("categories")
-        .where("name", "==", cat.name)
-        .where("type", "==", cat.type)
-        .get();
+          .where("name", "==", cat.name)
+          .where("type", "==", cat.type)
+          .get();
 
       if (existing.empty) {
         await db.collection("categories").add({
           ...cat,
-          createdAt: admin.firestore.FieldValue.serverTimestamp()
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         console.log(`✅ Category: ${cat.name} (${cat.type})`);
       } else {
@@ -345,13 +345,13 @@ async function populate() {
     console.log("\n🥘 Adding Products...");
     for (const prod of PRODUCTS) {
       const existing = await db.collection("products")
-        .where("name", "==", prod.name)
-        .get();
+          .where("name", "==", prod.name)
+          .get();
 
       if (existing.empty) {
         await db.collection("products").add({
           ...prod,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
         });
         console.log(`✅ Product: ${prod.name}`);
       } else {

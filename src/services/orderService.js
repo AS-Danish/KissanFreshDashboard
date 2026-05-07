@@ -104,7 +104,7 @@ export const assignRiderToOrderTransaction = async (
       transaction.update(orderRef, {
         slotId: newSlotId,
         riderId: newRiderId,
-        status: "PROCESSING", // Automatically transition if assigned
+        status: "ASSIGNED", // Automatically transition if assigned
         updatedAt: new Date().toISOString()
       });
     });

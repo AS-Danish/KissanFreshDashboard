@@ -45,7 +45,7 @@ import {
     IconCalendar,
     IconClock
 } from "@tabler/icons-react"
-import { OrderDetailsSheet } from "@/components/order-details-sheet"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import {
     DropdownMenu,
@@ -123,7 +123,7 @@ export default function OrderManagement() {
     const [currentPage, setCurrentPage] = useState(1);
     const [loading, setLoading] = useState(true);
     const [selectedOrder, setSelectedOrder] = useState(null);
-    const [isSheetOpen, setIsSheetOpen] = useState(false);
+    const router = useRouter();
     const [ridersMap, setRidersMap] = useState({});
     const [usersMap, setUsersMap] = useState({});
 
@@ -189,8 +189,7 @@ export default function OrderManagement() {
     }, [searchQuery, statusFilter]);
 
     const handleViewDetails = (order) => {
-        setSelectedOrder(order);
-        setIsSheetOpen(true);
+        router.push(`/dashboard/order-management/${order.id}`);
     };
 
     const handleQuickStatusUpdate = async (e, orderId, newStatus) => {
@@ -299,7 +298,9 @@ export default function OrderManagement() {
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all" className="text-xs font-semibold uppercase">All Status</SelectItem>
+                                        <SelectItem value="ASSIGNED" className="text-xs font-semibold uppercase text-indigo-600">Assigned</SelectItem>
                                         <SelectItem value="PROCESSING" className="text-xs font-semibold uppercase text-blue-600">Processing</SelectItem>
+                                        <SelectItem value="OUT FOR DELIVERY" className="text-xs font-semibold uppercase text-amber-600">Out for Delivery</SelectItem>
                                         <SelectItem value="SHIPPED" className="text-xs font-semibold uppercase text-purple-600">In Transit</SelectItem>
                                         <SelectItem value="DELIVERED" className="text-xs font-semibold uppercase text-secondary">Delivered</SelectItem>
                                         <SelectItem value="CANCELLED" className="text-xs font-semibold uppercase text-destructive">Cancelled</SelectItem>
@@ -382,8 +383,8 @@ export default function OrderManagement() {
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Badge variant="outline" className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-widest ${order.paymentMethod === 'COD' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
-                                                        {order.paymentMethod === 'COD' ? 'COD' : 'Online'}
+                                                    <Badge variant="outline" className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-widest ${(order.orderType || order.paymentMethod)?.toUpperCase() === 'COD' || (order.orderType || order.paymentMethod)?.toUpperCase() === 'CASH' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                                                        {(order.orderType || order.paymentMethod)?.toUpperCase() === 'COD' || (order.orderType || order.paymentMethod)?.toUpperCase() === 'CASH' ? 'COD' : 'Online'}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
@@ -418,7 +419,7 @@ export default function OrderManagement() {
                                                 <TableCell className="text-center">
                                                     <Badge variant="outline" className={`${getStatusColor(order.status)} px-3 py-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider justify-center w-[130px] mx-auto`}>
                                                         {getStatusIcon(order.status)}
-                                                        {order.status}
+                                                        {order.status?.toUpperCase()}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="text-right px-6">
@@ -558,13 +559,6 @@ export default function OrderManagement() {
                     )}
                 </div>
 
-                <OrderDetailsSheet 
-                    order={selectedOrder} 
-                    open={isSheetOpen} 
-                    onOpenChange={setIsSheetOpen} 
-                    ridersMap={ridersMap}
-                    userName={selectedOrder ? usersMap[selectedOrder.userId] : ""}
-                />
             </SidebarInset>
         </SidebarProvider>
     );

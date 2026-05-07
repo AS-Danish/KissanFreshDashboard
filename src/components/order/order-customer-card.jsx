@@ -7,12 +7,12 @@ export function OrderCustomerCard({ userName, userId, deliveryAddress, orderDate
                 <IconUser className="h-4 w-4" />
                 <h3 className="font-bold text-xs uppercase tracking-wider">Customer Info</h3>
             </div>
-            <div className="space-y-4 bg-muted/20 p-5 rounded-xl border">
+            <div className="space-y-4 bg-muted p-5 rounded-xl border">
                 <div>
                     <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest mb-2">Customer Identity</p>
-                    <div className="flex flex-col gap-1.5 p-3 rounded-xl border bg-background/50">
+                    <div className="flex flex-col gap-1.5 p-3 rounded-xl border bg-background">
                         <div className="flex items-center gap-2">
-                            <div className="h-6 w-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">
+                            <div className="h-6 w-6 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center text-[10px] font-bold">
                                 {userName?.substring(0, 1).toUpperCase() || 'U'}
                             </div>
                             <span className="text-sm font-bold text-foreground">{userName || 'Guest User'}</span>

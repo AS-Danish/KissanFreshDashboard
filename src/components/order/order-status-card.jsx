@@ -18,10 +18,10 @@ export function OrderStatusCard({ status, updating, onUpdateStatus }) {
                 <div className="flex items-center gap-2 w-full sm:w-auto">
                     <Select 
                         disabled={updating} 
-                        value={status} 
+                        value={status?.toUpperCase()} 
                         onValueChange={onUpdateStatus}
                     >
-                        <SelectTrigger className="w-full sm:w-[180px] h-10 font-medium">
+                        <SelectTrigger className="w-full sm:w-[180px] h-10 font-medium text-foreground">
                             <SelectValue placeholder="Update Status" />
                         </SelectTrigger>
                         <SelectContent>

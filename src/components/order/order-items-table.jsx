@@ -17,13 +17,13 @@ export function OrderItemsTable({ items }) {
                     <h3 className="text-lg font-bold text-foreground">Order Items</h3>
                     <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Listing of all products in this order</p>
                 </div>
-                <Badge variant="secondary" className="px-3 py-1 text-[10px] font-bold bg-primary/10 text-primary border-none">
+                <Badge variant="secondary" className="px-3 py-1 text-[10px] font-bold bg-blue-100 text-blue-800 border-none">
                     {items?.length || 0} ITEMS
                 </Badge>
             </div>
             <div className="rounded-xl border overflow-hidden bg-card">
                 <Table>
-                    <TableHeader className="bg-muted/50">
+                    <TableHeader className="bg-muted">
                         <TableRow>
                             <TableHead className="font-semibold text-foreground px-4 py-3">Product</TableHead>
                             <TableHead className="text-center font-semibold text-foreground">Qty</TableHead>
@@ -33,7 +33,7 @@ export function OrderItemsTable({ items }) {
                     </TableHeader>
                     <TableBody>
                         {items?.map((item, index) => (
-                            <TableRow key={index} className="hover:bg-muted/30 transition-colors">
+                            <TableRow key={index} className="hover:bg-muted transition-colors">
                                 <TableCell className="py-4 px-4">
                                     <div className="flex items-center gap-3">
                                         <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg border bg-muted">

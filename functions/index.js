@@ -378,7 +378,7 @@ exports.createOrder = require("firebase-functions/v2/https")
                 id: shortId, // use new short ID
                 slotId: selectedSlotDoc.id,
                 riderId: selectedRiderDoc.id,
-                status: "assigned",
+                status: "ASSIGNED",
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
                 assignedAt: admin.firestore.FieldValue.serverTimestamp(),
               };
@@ -439,3 +439,68 @@ exports.createOrder = require("firebase-functions/v2/https")
                 error.message);
           }
         });
+
+/**
+ * Triggered when an order status is updated.
+ * Sends a push notification to the user.
+ */
+exports.onOrderStatusUpdate = require("firebase-functions/v2/firestore")
+    .onDocumentUpdated("orders/{orderId}", async (event) => {
+      const before = event.data.before.data();
+      const after = event.data.after.data();
+
+      // Only proceed if status has changed
+      if (before.status === after.status) return null;
+
+      const orderId = event.params.orderId;
+      const userId = after.userId;
+      const newStatus = (after.status || "").toUpperCase();
+
+      if (!userId) return null;
+
+      try {
+        // Fetch user token
+        const userSnap = await db.collection("users").doc(userId).get();
+        const userData = userSnap.data();
+        const fcmToken = userData?.fcmToken;
+
+        if (!fcmToken) {
+          console.log(`No FCM token found for user ${userId}. Skipping.`);
+          return null;
+        }
+
+        // Determine message body based on status
+        let body = `Your order #${orderId} status has been updated to ${newStatus}.`;
+
+        if (newStatus === "ASSIGNED") {
+          body = `Order #${orderId} has been assigned to a rider and will be with you soon.`;
+        } else if (newStatus === "OUT FOR DELIVERY") {
+          body = `Order #${orderId} is out for delivery! 🚚 Get ready for freshness.`;
+        } else if (newStatus === "DELIVERED") {
+          body = `Order #${orderId} has been delivered. Enjoy your Kissan Fresh products! 🧺`;
+        } else if (newStatus === "CANCELLED") {
+          body = `Order #${orderId} has been cancelled. Please contact support if you have questions.`;
+        } else if (newStatus === "PROCESSING") {
+          body = `Order #${orderId} is now being processed and prepared for delivery.`;
+        }
+
+        const message = {
+          notification: {
+            title: "Order Update",
+            body: body,
+          },
+          data: {
+            orderId: orderId,
+            type: "ORDER_STATUS_UPDATE",
+            status: newStatus,
+          },
+          token: fcmToken,
+        };
+
+        await admin.messaging().send(message);
+        console.log(`✅ FCM notification sent for Order: ${orderId}, Status: ${newStatus}`);
+      } catch (error) {
+        console.error(`🚨 Error sending FCM for order ${orderId}:`, error);
+      }
+      return null;
+    });

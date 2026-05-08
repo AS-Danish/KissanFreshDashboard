@@ -115,6 +115,11 @@ const data = {
         },
       ]
     },
+    {
+      title: "Theme Management",
+      url: "/dashboard/theme-management",
+      icon: IconCamera,
+    },
   ],
   navClouds: [
     {

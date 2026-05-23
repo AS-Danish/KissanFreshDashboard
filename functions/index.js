@@ -4,8 +4,8 @@ if (!admin.apps.length) {
 }
 const db = admin.firestore();
 
-const {setGlobalOptions} = require("firebase-functions/v2");
-setGlobalOptions({region: "us-central1"});
+const { setGlobalOptions } = require("firebase-functions/v2");
+setGlobalOptions({ region: "us-central1" });
 
 /**
  * Haversine formula to calculate distance between two points in km.
@@ -29,478 +29,504 @@ function getDistance(lat1, lon1, lat2, lon2) {
 
 
 exports.generateDailySlots = require("firebase-functions/v2/scheduler")
-    .onSchedule({
-      schedule: "0 0 * * *",
-      timeZone: "Asia/Kolkata",
-      retryCount: 3,
-    }, async (event) => {
-      try {
-        const ridersQuery = db.collection("riders")
-            .where("status", "==", "ACTIVE");
-        const ridersSnap = await ridersQuery.get();
-        const activeRiders = ridersSnap.docs.map((doc) => {
-          return {id: doc.id, ...doc.data()};
-        });
+  .onSchedule({
+    schedule: "0 0 * * *",
+    timeZone: "Asia/Kolkata",
+    retryCount: 3,
+  }, async (event) => {
+    try {
+      const ridersQuery = db.collection("riders")
+        .where("status", "==", "ACTIVE");
+      const ridersSnap = await ridersQuery.get();
+      const activeRiders = ridersSnap.docs.map((doc) => {
+        return { id: doc.id, ...doc.data() };
+      });
 
-        const capacityPerSlot = activeRiders.length * 6;
-        const batch = db.batch();
+      const capacityPerSlot = activeRiders.length * 6;
+      const batch = db.batch();
 
-        const startHour = 6;
-        const endHour = 22;
+      const startHour = 6;
+      const endHour = 22;
 
-        const formatter = new Intl.DateTimeFormat("en-CA", {
-          timeZone: "Asia/Kolkata",
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-        });
+      const formatter = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Kolkata",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      });
 
-        for (let dayOffset = 0; dayOffset <= 1; dayOffset++) {
-          const targetDate = new Date();
-          const dayMs = dayOffset * 24 * 60 * 60 * 1000;
-          targetDate.setTime(targetDate.getTime() + dayMs);
-          const dateString = formatter.format(targetDate);
+      for (let dayOffset = 0; dayOffset <= 1; dayOffset++) {
+        const targetDate = new Date();
+        const dayMs = dayOffset * 24 * 60 * 60 * 1000;
+        targetDate.setTime(targetDate.getTime() + dayMs);
+        const dateString = formatter.format(targetDate);
 
-          // Check if slots for this date exist (e.g., from today's slot)
-          const firstSlotId =
-              `${dateString}_${startHour.toString().padStart(2, "0")}`;
-          const firstSlotSnap =
-              await db.collection("slots").doc(firstSlotId).get();
-          if (firstSlotSnap.exists) {
-            console.log(`Slots for ${dateString} already exist. Skipping.`);
-            continue;
-          }
-
-          console.log(`Generating slots for date: ${dateString}`);
-
-          for (let hour = startHour; hour < endHour; hour++) {
-            const hourString = hour.toString().padStart(2, "0");
-            const slotId = `${dateString}_${hourString}`;
-
-            const slotRef = db.collection("slots").doc(slotId);
-
-            const slotStartStr = `${dateString}T${hourString}:00:00+05:30`;
-            const nextHourStr = (hour + 1).toString().padStart(2, "0");
-            const slotEndStr = `${dateString}T${nextHourStr}:00:00+05:30`;
-
-            const slotStart = new Date(slotStartStr);
-            const slotEnd = new Date(slotEndStr);
-
-            batch.set(slotRef, {
-              startTime: admin.firestore.Timestamp.fromDate(slotStart),
-              endTime: admin.firestore.Timestamp.fromDate(slotEnd),
-              isActive: true,
-              isLocked: false,
-              capacity: capacityPerSlot,
-              assignedOrders: 0,
-              createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            }, {merge: true});
-
-            for (const rider of activeRiders) {
-              const riderSlotRef = slotRef.collection("riders").doc(rider.id);
-              batch.set(riderSlotRef, {
-                riderId: rider.riderId || rider.id,
-                maxOrders: 6,
-                assignedOrders: 0,
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
-              }, {merge: true});
-            }
-          }
+        // Check if slots for this date exist (e.g., from today's slot)
+        const firstSlotId =
+          `${dateString}_${startHour.toString().padStart(2, "0")}`;
+        const firstSlotSnap =
+          await db.collection("slots").doc(firstSlotId).get();
+        if (firstSlotSnap.exists) {
+          console.log(`Slots for ${dateString} already exist. Skipping.`);
+          continue;
         }
 
-        await batch.commit();
-        console.log("Successfully generated slots.");
-      } catch (error) {
-        console.error("Error generating daily slots:", error);
+        console.log(`Generating slots for date: ${dateString}`);
+
+        for (let hour = startHour; hour < endHour; hour++) {
+          const hourString = hour.toString().padStart(2, "0");
+          const slotId = `${dateString}_${hourString}`;
+
+          const slotRef = db.collection("slots").doc(slotId);
+
+          const slotStartStr = `${dateString}T${hourString}:00:00+05:30`;
+          const nextHourStr = (hour + 1).toString().padStart(2, "0");
+          const slotEndStr = `${dateString}T${nextHourStr}:00:00+05:30`;
+
+          const slotStart = new Date(slotStartStr);
+          const slotEnd = new Date(slotEndStr);
+
+          batch.set(slotRef, {
+            startTime: admin.firestore.Timestamp.fromDate(slotStart),
+            endTime: admin.firestore.Timestamp.fromDate(slotEnd),
+            isActive: true,
+            isLocked: false,
+            capacity: capacityPerSlot,
+            assignedOrders: 0,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          }, { merge: true });
+
+          for (const rider of activeRiders) {
+            const riderSlotRef = slotRef.collection("riders").doc(rider.id);
+            batch.set(riderSlotRef, {
+              riderId: rider.riderId || rider.id,
+              maxOrders: 6,
+              assignedOrders: 0,
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+          }
+        }
       }
-    });
+
+      await batch.commit();
+      console.log("Successfully generated slots.");
+    } catch (error) {
+      console.error("Error generating daily slots:", error);
+    }
+  });
 
 /**
  * Triggered when a new document is added to the 'failed_orders' collection.
  * This function automatically issues a refund using the Razorpay API.
  */
 exports.processimmediaterefund = require("firebase-functions/v2/firestore")
-    .onDocumentCreated({
-      document: "failed_orders/{docId}",
-      secrets: ["RAZORPAY_KEY", "RAZORPAY_SECRET"],
-    }, async (event) => {
-      const snapshot = event.data;
-      if (!snapshot) {
-        console.log("No data associated with the event");
-        return null;
-      }
+  .onDocumentCreated({
+    document: "failed_orders/{docId}",
+    secrets: ["RAZORPAY_KEY", "RAZORPAY_SECRET"],
+  }, async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) {
+      console.log("No data associated with the event");
+      return null;
+    }
 
-      const data = snapshot.data();
-      const docId = event.params.docId;
+    const data = snapshot.data();
+    const docId = event.params.docId;
 
-      if (data.status !== "paid_but_stock_failed" ||
-          data.refundStatus === "processed") {
-        console.log(`Document ${docId} skipped: Status is ${data.status}, ` +
-            `RefundStatus is ${data.refundStatus}`);
-        return null;
-      }
+    if (data.status !== "paid_but_stock_failed" ||
+      data.refundStatus === "processed") {
+      console.log(`Document ${docId} skipped: Status is ${data.status}, ` +
+        `RefundStatus is ${data.refundStatus}`);
+      return null;
+    }
 
-      const {paymentId, totalAmount} = data;
+    const { paymentId, totalAmount } = data;
 
-      if (!paymentId) {
-        console.error(`Document ${docId} missing paymentId. ` +
+    if (!paymentId) {
+      console.error(`Document ${docId} missing paymentId. ` +
         `Cannot process refund.`);
+      return snapshot.ref.update({
+        refundStatus: "failed",
+        refundError: "Missing paymentId",
+      });
+    }
+
+    const rKey = process.env.RAZORPAY_KEY;
+    const rSecret = process.env.RAZORPAY_SECRET;
+
+    if (!rKey || !rSecret) {
+      console.error("Razorpay keys not configured in Firebase Secrets.");
+      return snapshot.ref.update({
+        refundStatus: "failed",
+        refundError: "Razorpay keys not configured in Secrets",
+      });
+    }
+
+    const Razorpay = require("razorpay");
+    const razorpay = new Razorpay({
+      key_id: rKey,
+      key_secret: rSecret,
+    });
+
+    try {
+      console.log(`Checking status for Payment ID: ${paymentId}`);
+
+      const payment = await razorpay.payments.fetch(paymentId);
+      console.log(`Current Payment Status: ${payment.status}`);
+
+      if (payment.status === "authorized") {
+        console.log(`Payment ${paymentId} is authorized. Capturing now...`);
+        const captureResponse = await razorpay.payments.capture(paymentId,
+          Math.round(totalAmount * 100), "INR");
+        console.log(`Capture successful: ${captureResponse.id}. ` +
+          `Waiting 2s for sync...`);
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      } else if (payment.status !== "captured") {
         return snapshot.ref.update({
           refundStatus: "failed",
-          refundError: "Missing paymentId",
+          refundError: `Payment is in ${payment.status} state.`,
+          refundErrorCode: "PAYMENT_NOT_READY",
         });
       }
 
-      const rKey = process.env.RAZORPAY_KEY;
-      const rSecret = process.env.RAZORPAY_SECRET;
+      console.log(`Initiating full refund for ${paymentId}`);
 
-      if (!rKey || !rSecret) {
-        console.error("Razorpay keys not configured in Firebase Secrets.");
-        return snapshot.ref.update({
-          refundStatus: "failed",
-          refundError: "Razorpay keys not configured in Secrets",
-        });
-      }
-
-      const Razorpay = require("razorpay");
-      const razorpay = new Razorpay({
-        key_id: rKey,
-        key_secret: rSecret,
+      const refund = await razorpay.payments.refund(paymentId, {
+        notes: {
+          reason: "Auto-refund due to stock race condition",
+          failed_order_doc_id: docId,
+        },
       });
 
-      try {
-        console.log(`Checking status for Payment ID: ${paymentId}`);
+      console.log(`Refund successful for ${docId}:`, refund.id);
 
-        const payment = await razorpay.payments.fetch(paymentId);
-        console.log(`Current Payment Status: ${payment.status}`);
-
-        if (payment.status === "authorized") {
-          console.log(`Payment ${paymentId} is authorized. Capturing now...`);
-          const captureResponse = await razorpay.payments.capture(paymentId,
-              Math.round(totalAmount * 100), "INR");
-          console.log(`Capture successful: ${captureResponse.id}. ` +
-          `Waiting 2s for sync...`);
-          await new Promise((resolve) => setTimeout(resolve, 2000));
-        } else if (payment.status !== "captured") {
-          return snapshot.ref.update({
-            refundStatus: "failed",
-            refundError: `Payment is in ${payment.status} state.`,
-            refundErrorCode: "PAYMENT_NOT_READY",
-          });
-        }
-
-        console.log(`Initiating full refund for ${paymentId}`);
-
-        const refund = await razorpay.payments.refund(paymentId, {
-          notes: {
-            reason: "Auto-refund due to stock race condition",
-            failed_order_doc_id: docId,
-          },
-        });
-
-        console.log(`Refund successful for ${docId}:`, refund.id);
-
-        return snapshot.ref.update({
-          refundStatus: "processed",
-          refundId: refund.id,
-          refundTimestamp: admin.firestore.FieldValue.serverTimestamp(),
-        });
-      } catch (error) {
-        console.error(`Refund failed for ${docId}:`, error);
-        const rzpErr = error.error || error;
-        const errorMsg = rzpErr.description || rzpErr.message ||
+      return snapshot.ref.update({
+        refundStatus: "processed",
+        refundId: refund.id,
+        refundTimestamp: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } catch (error) {
+      console.error(`Refund failed for ${docId}:`, error);
+      const rzpErr = error.error || error;
+      const errorMsg = rzpErr.description || rzpErr.message ||
         (typeof error === "string" ? error : "Unknown error");
-        const errorCode = rzpErr.code || "unknown_refund_error";
+      const errorCode = rzpErr.code || "unknown_refund_error";
 
-        return snapshot.ref.update({
-          refundStatus: "failed",
-          refundError: errorMsg,
-          refundErrorCode: errorCode,
-          refundTimestamp: admin.firestore.FieldValue.serverTimestamp(),
-        });
-      }
-    });
+      return snapshot.ref.update({
+        refundStatus: "failed",
+        refundError: errorMsg,
+        refundErrorCode: errorCode,
+        refundTimestamp: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+  });
 
 /**
  * Callable function to process order creation and specific slot/rider
  * assignment natively inside a transaction.
  */
 exports.createOrder = require("firebase-functions/v2/https")
-    .onCall(
-        async (request) => {
-          const data = request.data;
-          const auth = request.auth;
-          const {HttpsError} = require("firebase-functions/v2/https");
-          const orderData = data.order;
+  .onCall(
+    async (request) => {
+      const data = request.data;
+      const auth = request.auth;
+      const { HttpsError } = require("firebase-functions/v2/https");
+      const orderData = data.order;
 
-          // 1. Service Area Restriction Check (30km Radius)
-          const cityCenter = {lat: 19.8762, lng: 75.3433};
-          if (orderData.latitude && orderData.longitude) {
-            const distance = getDistance(
-                orderData.latitude,
-                orderData.longitude,
-                cityCenter.lat,
-                cityCenter.lng,
-            );
+      // 1. Service Area Restriction Check (30km Radius)
+      const cityCenter = { lat: 19.8762, lng: 75.3433 };
+      if (orderData.latitude && orderData.longitude) {
+        const distance = getDistance(
+          orderData.latitude,
+          orderData.longitude,
+          cityCenter.lat,
+          cityCenter.lng,
+        );
 
-            if (distance > 30) {
+        if (distance > 30) {
+          throw new HttpsError("failed-precondition",
+            "We are not in your area yet. Currently, we only serve " +
+            "Chattrapati Sambhaji Nagar.",
+            { reason: "out_of_service_area", distance: distance });
+        }
+      }
+      // ... rest of your existing transaction logic ...
+
+      if (!auth) {
+        throw new HttpsError("unauthenticated",
+          "User must be logged in to place an order.");
+      }
+
+      if (!orderData || !orderData.items || orderData.items.length === 0) {
+        throw new HttpsError("invalid-argument", "Missing order items.");
+      }
+
+      const selectedSlotId = orderData.slotId;
+      if (!selectedSlotId) {
+        throw new HttpsError("invalid-argument",
+          "Missing preferred slot ID for delivery.");
+      }
+
+      try {
+        const result = await db.runTransaction(async (transaction) => {
+          const productRefs = orderData.items.map((item) =>
+            db.collection("products").doc(item.productId));
+          const productSnaps = await transaction.getAll(...productRefs);
+          const stockUpdates = [];
+
+          for (let i = 0; i < productSnaps.length; i++) {
+            const snap = productSnaps[i];
+            const item = orderData.items[i];
+
+            if (!snap.exists) {
               throw new HttpsError("failed-precondition",
-                  "We are not in your area yet. Currently, we only serve " +
-                  "Chattrapati Sambhaji Nagar.",
-                  {reason: "out_of_service_area", distance: distance});
+                `Product ${item.title} no longer available.`,
+                { reason: "product_unavailable" });
             }
-          }
-          // ... rest of your existing transaction logic ...
 
-          if (!auth) {
-            throw new HttpsError("unauthenticated",
-                "User must be logged in to place an order.");
-          }
+            const currentStock = snap.data().stockCount || 0;
+            if (currentStock < item.quantity) {
+              throw new HttpsError("failed-precondition",
+                `Insufficient stock for ${item.title}. ` +
+                `Available: ${currentStock}`,
+                { reason: "insufficient_stock" });
+            }
 
-          if (!orderData || !orderData.items || orderData.items.length === 0) {
-            throw new HttpsError("invalid-argument", "Missing order items.");
-          }
-
-          const selectedSlotId = orderData.slotId;
-          if (!selectedSlotId) {
-            throw new HttpsError("invalid-argument",
-                "Missing preferred slot ID for delivery.");
+            stockUpdates.push({
+              ref: snap.ref,
+              newStock: currentStock - item.quantity,
+            });
           }
 
-          try {
-            const result = await db.runTransaction(async (transaction) => {
-              const productRefs = orderData.items.map((item) =>
-                db.collection("products").doc(item.productId));
-              const productSnaps = await transaction.getAll(...productRefs);
-              const stockUpdates = [];
+          const slotRef = db.collection("slots").doc(selectedSlotId);
+          const slotSnap = await transaction.get(slotRef);
+          if (!slotSnap.exists) {
+            throw new HttpsError("failed-precondition",
+              `Selected slot no longer exists.`,
+              { reason: "slot_invalid" });
+          }
 
-              for (let i = 0; i < productSnaps.length; i++) {
-                const snap = productSnaps[i];
-                const item = orderData.items[i];
+          const slotCtx = slotSnap.data();
+          if (!slotCtx.isActive || slotCtx.isLocked) {
+            throw new HttpsError("failed-precondition",
+              "The selected delivery slot is no longer active.",
+              { reason: "slot_inactive" });
+          }
 
-                if (!snap.exists) {
-                  throw new HttpsError("failed-precondition",
-                      `Product ${item.title} no longer available.`,
-                      {reason: "product_unavailable"});
-                }
+          const cap = slotCtx.capacity || 0;
+          const ass = slotCtx.assignedOrders || 0;
 
-                const currentStock = snap.data().stockCount || 0;
-                if (currentStock < item.quantity) {
-                  throw new HttpsError("failed-precondition",
-                      `Insufficient stock for ${item.title}. ` +
-                      `Available: ${currentStock}`,
-                      {reason: "insufficient_stock"});
-                }
+          if (ass >= cap) {
+            throw new HttpsError("failed-precondition",
+              "The selected slot is now fully booked. " +
+              "Please select another slot.",
+              { reason: "slot_full" });
+          }
 
-                stockUpdates.push({
-                  ref: snap.ref,
-                  newStock: currentStock - item.quantity,
-                });
-              }
+          const avRidersQuery = slotRef.collection("riders")
+            .where("assignedOrders", "<", 6)
+            .orderBy("assignedOrders", "asc")
+            .limit(1);
 
-              const slotRef = db.collection("slots").doc(selectedSlotId);
-              const slotSnap = await transaction.get(slotRef);
-              if (!slotSnap.exists) {
-                throw new HttpsError("failed-precondition",
-                    `Selected slot no longer exists.`,
-                    {reason: "slot_invalid"});
-              }
+          const ridersSnap = await transaction.get(avRidersQuery);
 
-              const slotCtx = slotSnap.data();
-              if (!slotCtx.isActive || slotCtx.isLocked) {
-                throw new HttpsError("failed-precondition",
-                    "The selected delivery slot is no longer active.",
-                    {reason: "slot_inactive"});
-              }
+          if (ridersSnap.empty) {
+            throw new HttpsError("failed-precondition",
+              "Currently no slots are available. Please try again later.",
+              { reason: "slot_full_riders" });
+          }
 
-              const cap = slotCtx.capacity || 0;
-              const ass = slotCtx.assignedOrders || 0;
+          const selectedSlotDoc = slotSnap;
+          const selectedRiderDoc = ridersSnap.docs[0];
 
-              if (ass >= cap) {
-                throw new HttpsError("failed-precondition",
-                    "The selected slot is now fully booked. " +
-                    "Please select another slot.",
-                    {reason: "slot_full"});
-              }
+          // 4. Generate New Short Order ID (KF-XXXXXX)
+          const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+          let shortId = "KF-";
+          for (let i = 0; i < 6; i++) {
+            const idx = Math.floor(Math.random() * chars.length);
+            shortId += chars.charAt(idx);
+          }
 
-              const avRidersQuery = slotRef.collection("riders")
-                  .where("assignedOrders", "<", 6)
-                  .orderBy("assignedOrders", "asc")
-                  .limit(1);
+          const orderRef = db.collection("orders").doc(shortId);
+          const orderSnap = await transaction.get(orderRef);
+          if (orderSnap.exists) {
+            // If collision, regenerate (though unlikely)
+            shortId = "KF-"; // Reset and try again for a fresh ID
+            for (let i = 0; i < 6; i++) {
+              const idx = Math.floor(Math.random() * chars.length);
+              shortId += chars.charAt(idx);
+            }
+            // Note: Realistically we should loop until unique, but collision is extremely rare.
+          }
 
-              const ridersSnap = await transaction.get(avRidersQuery);
+          for (const update of stockUpdates) {
+            transaction.update(update.ref, { stockCount: update.newStock });
+          }
 
-              if (ridersSnap.empty) {
-                throw new HttpsError("failed-precondition",
-                    "Currently no slots are available. Please try again later.",
-                    {reason: "slot_full_riders"});
-              }
+          const newSlotAssignedOrders =
+            (selectedSlotDoc.data().assignedOrders || 0) + 1;
+          transaction.update(selectedSlotDoc.ref,
+            { assignedOrders: newSlotAssignedOrders });
 
-              const selectedSlotDoc = slotSnap;
-              const selectedRiderDoc = ridersSnap.docs[0];
+          const newRiderAssignedOrders =
+            (selectedRiderDoc.data().assignedOrders || 0) + 1;
+          transaction.update(selectedRiderDoc.ref,
+            { assignedOrders: newRiderAssignedOrders });
 
-              // 4. Generate New Short Order ID (KF-XXXXXX)
-              const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-              let shortId = "KF-";
-              for (let i = 0; i < 6; i++) {
-                const idx = Math.floor(Math.random() * chars.length);
-                shortId += chars.charAt(idx);
-              }
+          const enrichedOrderData = {
+            ...orderData,
+            id: shortId, // use new short ID
+            slotId: selectedSlotDoc.id,
+            riderId: selectedRiderDoc.id,
+            status: "ASSIGNED",
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            assignedAt: admin.firestore.FieldValue.serverTimestamp(),
+          };
 
-              const orderRef = db.collection("orders").doc(shortId);
-              const orderSnap = await transaction.get(orderRef);
-              if (orderSnap.exists) {
-                // If collision, regenerate (though unlikely)
-                shortId = "KF-"; // Reset and try again for a fresh ID
-                for (let i = 0; i < 6; i++) {
-                  const idx = Math.floor(Math.random() * chars.length);
-                  shortId += chars.charAt(idx);
-                }
-                // Note: Realistically we should loop until unique, but collision is extremely rare.
-              }
+          transaction.set(orderRef, enrichedOrderData);
 
-              for (const update of stockUpdates) {
-                transaction.update(update.ref, {stockCount: update.newStock});
-              }
+          return enrichedOrderData;
+        });
 
-              const newSlotAssignedOrders =
-                  (selectedSlotDoc.data().assignedOrders || 0) + 1;
-              transaction.update(selectedSlotDoc.ref,
-                  {assignedOrders: newSlotAssignedOrders});
+        console.log(`✅ Order ${result.id} successfully created and ` +
+          `assigned to requested Slot: ${result.slotId}, ` +
+          `Rider: ${result.riderId}`);
 
-              const newRiderAssignedOrders =
-                  (selectedRiderDoc.data().assignedOrders || 0) + 1;
-              transaction.update(selectedRiderDoc.ref,
-                  {assignedOrders: newRiderAssignedOrders});
+        // 6. Send FCM Notification to User (Non-blocking)
+        try {
+          const userRef = db.collection("users").doc(auth.uid);
+          const userSnap = await userRef.get();
+          const fcmToken = userSnap.data()?.fcmToken;
 
-              const enrichedOrderData = {
-                ...orderData,
-                id: shortId, // use new short ID
-                slotId: selectedSlotDoc.id,
-                riderId: selectedRiderDoc.id,
-                status: "ASSIGNED",
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                assignedAt: admin.firestore.FieldValue.serverTimestamp(),
-              };
+          if (fcmToken) {
+            const message = {
+              notification: {
+                title: "Order Successfully Placed!",
+                body: `Your order #${result.id} has been confirmed. ` +
+                  `Thank you for shopping with Kissan Fresh!`,
+              },
+              data: {
+                orderId: result.id,
+                type: "ORDER_PLACED",
+              },
+              token: fcmToken,
+            };
+            await admin.messaging().send(message);
+            console.log(`FCM notification sent for Order: ${result.id}`);
+          } else {
+            console.log(`No FCM token found for User: ${auth.uid}. ` +
+              `Skipping notification.`);
+          }
+        } catch (err) {
+          console.error(`Error sending FCM notification for order ${result.id}:`, err);
+        }
 
-              transaction.set(orderRef, enrichedOrderData);
+        // 7. Send Telegram Notification to Admin (Non-blocking)
+        try {
+          const botToken = process.env.TELEGRAM_BOT_TOKEN;
+          const chatId = process.env.TELEGRAM_CHAT_ID;
 
-              return enrichedOrderData;
+          if (botToken && chatId) {
+            const text = `🛒 <b>New Order Received!</b>\n\n<b>Order ID:</b> ${result.id}\n<b>Slot:</b> ${result.slotId}\n<b>Rider ID:</b> ${result.riderId}\n<b>Status:</b> Confirmed`;
+
+            const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chat_id: chatId,
+                text: text,
+                parse_mode: "HTML",
+              }),
             });
 
-            console.log(`✅ Order ${result.id} successfully created and ` +
-                `assigned to requested Slot: ${result.slotId}, ` +
-                `Rider: ${result.riderId}`);
-
-            // 6. Send FCM Notification to User (Non-blocking)
-            try {
-              const userRef = db.collection("users").doc(auth.uid);
-              const userSnap = await userRef.get();
-              const fcmToken = userSnap.data()?.fcmToken;
-
-              if (fcmToken) {
-                const message = {
-                  notification: {
-                    title: "Order Successfully Placed!",
-                    body: `Your order #${result.id} has been confirmed. ` +
-                        `Thank you for shopping with Kissan Fresh!`,
-                  },
-                  data: {
-                    orderId: result.id,
-                    type: "ORDER_PLACED",
-                  },
-                  token: fcmToken,
-                };
-                await admin.messaging().send(message);
-                console.log(`FCM notification sent for Order: ${result.id}`);
-              } else {
-                console.log(`No FCM token found for User: ${auth.uid}. ` +
-                    `Skipping notification.`);
-              }
-            } catch (err) {
-              console.error(`Error sending FCM notification for order ` +
-                  `${result.id}:`, err);
+            if (!response.ok) {
+              const errorData = await response.json();
+              console.error(`Telegram API Error [${result.id}]:`, JSON.stringify(errorData));
             }
-
-            return {
-              success: true,
-              message: "Order processed successfully",
-              orderId: result.id,
-              slotId: result.slotId,
-              riderId: result.riderId,
-            };
-          } catch (error) {
-            if (error instanceof HttpsError) {
-              throw error;
-            }
-            console.error(`🚨 Error creating order ${orderData.id}:`, error);
-            throw new HttpsError("internal",
-                "An unexpected error occurred while placing your order.",
-                error.message);
           }
-        });
+        } catch (err) {
+          console.error(`Telegram Notification Failed [${result.id}]:`, err.message || err);
+        }
+
+          return {
+            success: true,
+            message: "Order processed successfully",
+            orderId: result.id,
+            slotId: result.slotId,
+            riderId: result.riderId,
+          };
+        } catch (error) {
+          if (error instanceof HttpsError) {
+            throw error;
+          }
+          console.error(`🚨 Error creating order ${orderData.id}:`, error);
+          throw new HttpsError("internal",
+            "An unexpected error occurred while placing your order.",
+            error.message);
+        }
+      });
 
 /**
  * Triggered when an order status is updated.
  * Sends a push notification to the user.
  */
 exports.onOrderStatusUpdate = require("firebase-functions/v2/firestore")
-    .onDocumentUpdated("orders/{orderId}", async (event) => {
-      const before = event.data.before.data();
-      const after = event.data.after.data();
+  .onDocumentUpdated("orders/{orderId}", async (event) => {
+    const before = event.data.before.data();
+    const after = event.data.after.data();
 
-      // Only proceed if status has changed
-      if (before.status === after.status) return null;
+    // Only proceed if status has changed
+    if (before.status === after.status) return null;
 
-      const orderId = event.params.orderId;
-      const userId = after.userId;
-      const newStatus = (after.status || "").toUpperCase();
+    const orderId = event.params.orderId;
+    const userId = after.userId;
+    const newStatus = (after.status || "").toUpperCase();
 
-      if (!userId) return null;
+    if (!userId) return null;
 
-      try {
-        // Fetch user token
-        const userSnap = await db.collection("users").doc(userId).get();
-        const userData = userSnap.data();
-        const fcmToken = userData?.fcmToken;
+    try {
+      // Fetch user token
+      const userSnap = await db.collection("users").doc(userId).get();
+      const userData = userSnap.data();
+      const fcmToken = userData?.fcmToken;
 
-        if (!fcmToken) {
-          console.log(`No FCM token found for user ${userId}. Skipping.`);
-          return null;
-        }
-
-        // Determine message body based on status
-        let body = `Your order #${orderId} status has been updated to ${newStatus}.`;
-
-        if (newStatus === "ASSIGNED") {
-          body = `Order #${orderId} has been assigned to a rider and will be with you soon.`;
-        } else if (newStatus === "OUT FOR DELIVERY") {
-          body = `Order #${orderId} is out for delivery! 🚚 Get ready for freshness.`;
-        } else if (newStatus === "DELIVERED") {
-          body = `Order #${orderId} has been delivered. Enjoy your Kissan Fresh products! 🧺`;
-        } else if (newStatus === "CANCELLED") {
-          body = `Order #${orderId} has been cancelled. Please contact support if you have questions.`;
-        } else if (newStatus === "PROCESSING") {
-          body = `Order #${orderId} is now being processed and prepared for delivery.`;
-        }
-
-        const message = {
-          notification: {
-            title: "Order Update",
-            body: body,
-          },
-          data: {
-            orderId: orderId,
-            type: "ORDER_STATUS_UPDATE",
-            status: newStatus,
-          },
-          token: fcmToken,
-        };
-
-        await admin.messaging().send(message);
-        console.log(`✅ FCM notification sent for Order: ${orderId}, Status: ${newStatus}`);
-      } catch (error) {
-        console.error(`🚨 Error sending FCM for order ${orderId}:`, error);
+      if (!fcmToken) {
+        console.log(`No FCM token found for user ${userId}. Skipping.`);
+        return null;
       }
-      return null;
-    });
+
+      // Determine message body based on status
+      let body = `Your order #${orderId} status has been updated to ${newStatus}.`;
+
+      if (newStatus === "ASSIGNED") {
+        body = `Order #${orderId} has been assigned to a rider and will be with you soon.`;
+      } else if (newStatus === "OUT FOR DELIVERY") {
+        body = `Order #${orderId} is out for delivery! 🚚 Get ready for freshness.`;
+      } else if (newStatus === "DELIVERED") {
+        body = `Order #${orderId} has been delivered. Enjoy your Kissan Fresh products! 🧺`;
+      } else if (newStatus === "CANCELLED") {
+        body = `Order #${orderId} has been cancelled. Please contact support if you have questions.`;
+      } else if (newStatus === "PROCESSING") {
+        body = `Order #${orderId} is now being processed and prepared for delivery.`;
+      }
+
+      const message = {
+        notification: {
+          title: "Order Update",
+          body: body,
+        },
+        data: {
+          orderId: orderId,
+          type: "ORDER_STATUS_UPDATE",
+          status: newStatus,
+        },
+        token: fcmToken,
+      };
+
+      await admin.messaging().send(message);
+      console.log(`✅ FCM notification sent for Order: ${orderId}, Status: ${newStatus}`);
+    } catch (error) {
+      console.error(`🚨 Error sending FCM for order ${orderId}:`, error);
+    }
+    return null;
+  });

@@ -31,6 +31,7 @@ import { collection, addDoc } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 
 import { useCategory } from "@/context/CategoryContext";
+import imageCompression from "browser-image-compression";
 
 const KISSAN_FRESH_TAGS = ["100% Organic", "Fresh", "Pure", "Farm-to-table", "Locally Sourced", "Vegan", "Gluten-Free"];
 const HOME_FOOD_TAGS = ["Homemade", "Preservative-free", "Traditional", "Authentic", "Mom's Recipe", "Spicy", "Healthy"];
@@ -124,8 +125,17 @@ export default function AddNewProduct() {
         try {
             const imageUrls = [];
             for (const image of images) {
-                const storageRef = ref(storage, `products/${Date.now()}_${image.name}`);
-                const uploadTask = await uploadBytesResumable(storageRef, image);
+                const options = {
+                    maxSizeMB: 1,
+                    maxWidthOrHeight: 1024,
+                    useWebWorker: true,
+                    fileType: 'image/webp'
+                };
+                const compressedFile = await imageCompression(image, options);
+                
+                const originalName = image.name.split('.')[0] || 'image';
+                const storageRef = ref(storage, `products/${Date.now()}_${originalName}.webp`);
+                const uploadTask = await uploadBytesResumable(storageRef, compressedFile);
                 const downloadURL = await getDownloadURL(uploadTask.ref);
                 imageUrls.push(downloadURL);
             }
@@ -135,7 +145,7 @@ export default function AddNewProduct() {
                 description,
                 category,
                 unit,
-                unitValue: Number(unitValue) || 1,
+                unitValue: unitValue || "1",
                 mrp: parseFloat(mrp) || parseFloat(price),
                 discountPercentage: parseFloat(discountPercentage) || 0,
                 price: parseFloat(price),
@@ -255,9 +265,8 @@ export default function AddNewProduct() {
                                         <Label htmlFor="unit-value" className="text-sm font-semibold tracking-wide text-foreground/80 group-focus-within/input:text-primary transition-colors">Quantity</Label>
                                         <Input
                                             id="unit-value"
-                                            type="number"
-                                            placeholder="1"
-                                            min="0"
+                                            type="text"
+                                            placeholder="e.g. 1 or 200-100"
                                             value={unitValue}
                                             onChange={(e) => setUnitValue(e.target.value)}
                                             className="bg-background border-border/50 focus-visible:ring-primary/50 h-12 text-base transition-all duration-300 hover:bg-muted/50"

@@ -284,8 +284,15 @@ exports.createOrder = require("firebase-functions/v2/https")
                 { reason: "product_unavailable" });
             }
 
-            const currentStock = snap.data().stockCount || 0;
-            if (currentStock < item.quantity) {
+            const quantity = parseInt(item.quantity, 10);
+            if (isNaN(quantity) || quantity < 1) {
+              throw new HttpsError("invalid-argument",
+                `Invalid quantity for ${item.title}.`,
+                { reason: "invalid_quantity" });
+            }
+
+            const currentStock = parseInt(snap.data().stockCount, 10) || 0;
+            if (currentStock < quantity) {
               throw new HttpsError("failed-precondition",
                 `Insufficient stock for ${item.title}. ` +
                 `Available: ${currentStock}`,
@@ -294,7 +301,7 @@ exports.createOrder = require("firebase-functions/v2/https")
 
             stockUpdates.push({
               ref: snap.ref,
-              newStock: currentStock - item.quantity,
+              incrementAmount: -quantity,
             });
           }
 
@@ -347,7 +354,7 @@ exports.createOrder = require("firebase-functions/v2/https")
             shortId += chars.charAt(idx);
           }
 
-          const orderRef = db.collection("orders").doc(shortId);
+          let orderRef = db.collection("orders").doc(shortId);
           const orderSnap = await transaction.get(orderRef);
           if (orderSnap.exists) {
             // If collision, regenerate (though unlikely)
@@ -356,11 +363,12 @@ exports.createOrder = require("firebase-functions/v2/https")
               const idx = Math.floor(Math.random() * chars.length);
               shortId += chars.charAt(idx);
             }
+            orderRef = db.collection("orders").doc(shortId);
             // Note: Realistically we should loop until unique, but collision is extremely rare.
           }
 
           for (const update of stockUpdates) {
-            transaction.update(update.ref, { stockCount: update.newStock });
+            transaction.update(update.ref, { stockCount: admin.firestore.FieldValue.increment(update.incrementAmount) });
           }
 
           const newSlotAssignedOrders =

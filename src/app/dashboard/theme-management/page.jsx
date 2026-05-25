@@ -80,8 +80,19 @@ export default function ThemeManagementPage() {
             const uploadTask = await uploadBytesResumable(storageRef, compressedFile);
             const downloadURL = await getDownloadURL(uploadTask.ref);
             
-            handleImageUrlChange(targetThemeName, downloadURL);
-            toast.success("Image uploaded successfully");
+            // Immediately update state and save to Firestore
+            const updatedThemes = themes.map(theme => {
+                const themeName = Object.keys(theme).find(k => k !== "imageURL");
+                if (themeName === targetThemeName) {
+                    return { ...theme, imageURL: downloadURL };
+                }
+                return theme;
+            });
+            
+            setThemes(updatedThemes);
+            await updateThemes(updatedThemes);
+            
+            toast.success("Image uploaded and saved successfully");
         } catch (error) {
             console.error("Error uploading image:", error);
             toast.error("Failed to upload image");

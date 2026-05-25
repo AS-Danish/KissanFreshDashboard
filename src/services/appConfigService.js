@@ -60,7 +60,8 @@ export const updateThemes = async (themes) => {
     try {
         const versionRef = doc(db, "app_config", "versioning");
         await setDoc(versionRef, {
-            themes: themes
+            themes: themes,
+            header_status_update_time: serverTimestamp()
         }, { merge: true });
         console.log("Themes updated successfully.");
     } catch (error) {

@@ -14,6 +14,7 @@ import { IconUpload, IconLoader2 } from "@tabler/icons-react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import imageCompression from "browser-image-compression";
 
 export default function ThemeManagementPage() {
     const [themes, setThemes] = useState([]);
@@ -67,8 +68,16 @@ export default function ThemeManagementPage() {
 
         setUploadingId(targetThemeName);
         try {
-            const storageRef = ref(storage, `products/themes/${Date.now()}_${file.name}`);
-            const uploadTask = await uploadBytesResumable(storageRef, file);
+            const options = {
+                maxSizeMB: 1,
+                maxWidthOrHeight: 1024,
+                useWebWorker: true,
+                fileType: 'image/webp'
+            };
+            const compressedFile = await imageCompression(file, options);
+            const originalName = file.name.split('.')[0] || 'image';
+            const storageRef = ref(storage, `products/themes/${Date.now()}_${originalName}.webp`);
+            const uploadTask = await uploadBytesResumable(storageRef, compressedFile);
             const downloadURL = await getDownloadURL(uploadTask.ref);
             
             handleImageUrlChange(targetThemeName, downloadURL);

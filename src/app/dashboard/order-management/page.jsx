@@ -27,6 +27,7 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { 
     IconSearch, 
@@ -378,16 +379,18 @@ export default function OrderManagement() {
                                 </TableHeader>
                                 <TableBody>
                                     {loading ? (
-                                        <TableRow>
-                                            <TableCell colSpan={6} className="text-center py-32">
-                                                <div className="flex flex-col items-center gap-4">
-                                                    <div className="h-16 w-16 bg-primary/10 rounded-3xl flex items-center justify-center animate-pulse">
-                                                        <IconRefresh className="h-8 w-8 text-primary animate-spin" />
-                                                    </div>
-                                                    <span className="text-xs font-black tracking-[0.2em] text-primary uppercase">Synchronizing Records...</span>
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
+                                        Array(5).fill(0).map((_, idx) => (
+                                            <TableRow key={idx}>
+                                                <TableCell className="px-6 py-4"><Skeleton className="h-10 w-full" /></TableCell>
+                                                <TableCell><Skeleton className="h-10 w-full" /></TableCell>
+                                                <TableCell><Skeleton className="h-10 w-full" /></TableCell>
+                                                <TableCell><Skeleton className="h-10 w-full" /></TableCell>
+                                                <TableCell><Skeleton className="h-10 w-full" /></TableCell>
+                                                <TableCell><Skeleton className="h-10 w-full" /></TableCell>
+                                                <TableCell><Skeleton className="h-10 w-full" /></TableCell>
+                                                <TableCell className="px-6"><Skeleton className="h-10 w-full" /></TableCell>
+                                            </TableRow>
+                                        ))
                                     ) : paginatedOrders.length === 0 ? (
                                         <TableRow>
                                             <TableCell colSpan={6} className="text-center py-32">

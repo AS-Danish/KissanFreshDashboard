@@ -173,9 +173,9 @@ export const getOrderStats = async () => {
     const processingSnap = await getCountFromServer(processingQuery);
     const processingOrders = processingSnap.data().count;
 
-    const shippedQuery = query(ordersRef, where("status", "==", "SHIPPED"));
-    const shippedSnap = await getCountFromServer(shippedQuery);
-    const shippedOrders = shippedSnap.data().count;
+    const deliveredQuery = query(ordersRef, where("status", "==", "DELIVERED"));
+    const deliveredSnap = await getCountFromServer(deliveredQuery);
+    const deliveredOrders = deliveredSnap.data().count;
 
     let grossRevenue = 0;
     try {
@@ -183,19 +183,79 @@ export const getOrderStats = async () => {
             totalRevenue: sum('totalAmount')
         });
         grossRevenue = revenueSnap.data().totalRevenue || 0;
+        
+        if (grossRevenue === 0) {
+             const allDocs = await getDocs(ordersRef);
+             let total = 0;
+             allDocs.forEach(d => {
+                 total += Number(d.data().totalAmount) || 0;
+             });
+             grossRevenue = total;
+        }
     } catch (e) {
         console.warn("Aggregate sum failed:", e);
+        const allDocs = await getDocs(ordersRef);
+        let total = 0;
+        allDocs.forEach(d => {
+             total += Number(d.data().totalAmount) || 0;
+        });
+        grossRevenue = total;
     }
 
     return {
         totalOrders,
         processingOrders,
-        shippedOrders,
+        deliveredOrders,
         grossRevenue
     };
   } catch (error) {
     console.error("Error fetching order stats:", error);
-    return { totalOrders: 0, processingOrders: 0, shippedOrders: 0, grossRevenue: 0 };
+    return { totalOrders: 0, processingOrders: 0, deliveredOrders: 0, grossRevenue: 0 };
   }
 };
 
+export const getChartData = async (days = 90) => {
+  try {
+    const ordersRef = collection(db, ORDERS_COLLECTION);
+    
+    // Fetch recent 1000 orders to aggregate
+    const q = query(ordersRef, orderBy("orderDate", "desc"), limit(1000));
+    const querySnapshot = await getDocs(q);
+    
+    const aggregated = {};
+    
+    querySnapshot.docs.forEach(doc => {
+      const data = doc.data();
+      if (!data.orderDate) return;
+      
+      let d;
+      if (data.orderDate.toDate) d = data.orderDate.toDate();
+      else d = new Date(data.orderDate);
+      
+      const dateStr = d.toISOString().split('T')[0];
+      if (!aggregated[dateStr]) {
+        aggregated[dateStr] = { revenue: 0, orders: 0 };
+      }
+      aggregated[dateStr].revenue += (Number(data.totalAmount) || 0);
+      aggregated[dateStr].orders += 1;
+    });
+    
+    // Fill missing dates
+    const result = [];
+    for (let i = days; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      result.push({
+        date: dateStr,
+        revenue: aggregated[dateStr]?.revenue || 0,
+        orders: aggregated[dateStr]?.orders || 0,
+      });
+    }
+    
+    return result;
+  } catch (error) {
+    console.error("Error fetching chart data:", error);
+    return [];
+  }
+};

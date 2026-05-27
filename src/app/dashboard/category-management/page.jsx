@@ -12,14 +12,16 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { IconPlus, IconTrash, IconCategory, IconLayoutCards, IconChefHat, IconShoppingBag, IconSearch } from "@tabler/icons-react"
+import { IconPlus, IconTrash, IconCategory, IconLayoutCards, IconChefHat, IconShoppingBag, IconSearch, IconEdit, IconCheck, IconX } from "@tabler/icons-react"
 import { toast } from "sonner"
 import { 
     addCategory, 
     deleteCategory, 
+    updateCategory,
     addSection, 
     deleteSection,
-    updateSectionRank
+    updateSectionRank,
+    updateSection
 } from "@/services/categoryService"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useCategory } from "@/context/CategoryContext";
@@ -53,6 +55,15 @@ export default function CategoryManagementPage() {
             toast.success("Success");
         } catch (error) {
             toast.error("Failed to delete category");
+        }
+    };
+
+    const handleUpdateCategory = async (id, newName) => {
+        try {
+            await updateCategory(id, newName);
+            toast.success("Success");
+        } catch (error) {
+            toast.error("Failed to update category");
         }
     };
 
@@ -94,6 +105,16 @@ export default function CategoryManagementPage() {
             toast.error("Failed to delete section");
         }
     };
+
+    const handleUpdateSection = async (id, data) => {
+        try {
+            await updateSection(id, data);
+            toast.success("Success");
+        } catch (error) {
+            toast.error("Failed to update section");
+        }
+    };
+
 
     const handleToggleCategoryInSection = (catName) => {
         setNewSection(prev => {
@@ -145,6 +166,7 @@ export default function CategoryManagementPage() {
                                     onInputChange={(val) => setNewCategory({ name: val, type: "home-food" })}
                                     onAdd={() => handleAddCategory("home-food")}
                                     onDelete={handleDeleteCategory}
+                                    onEdit={handleUpdateCategory}
                                     loading={loading}
                                     searchValue={hfSearch}
                                     onSearchChange={setHfSearch}
@@ -160,6 +182,7 @@ export default function CategoryManagementPage() {
                                     onInputChange={(val) => setNewCategory({ name: val, type: "kissan-fresh" })}
                                     onAdd={() => handleAddCategory("kissan-fresh")}
                                     onDelete={handleDeleteCategory}
+                                    onEdit={handleUpdateCategory}
                                     loading={loading}
                                     searchValue={kfSearch}
                                     onSearchChange={setKfSearch}
@@ -180,6 +203,7 @@ export default function CategoryManagementPage() {
                                     onAdd={() => handleAddSection("home-food")}
                                     onDelete={handleDeleteSection}
                                     onUpdateRank={handleUpdateRank}
+                                    onEdit={handleUpdateSection}
                                     onToggleCategory={handleToggleCategoryInSection}
                                     loading={loading}
                                 />
@@ -195,6 +219,7 @@ export default function CategoryManagementPage() {
                                     onAdd={() => handleAddSection("kissan-fresh")}
                                     onDelete={handleDeleteSection}
                                     onUpdateRank={handleUpdateRank}
+                                    onEdit={handleUpdateSection}
                                     onToggleCategory={handleToggleCategoryInSection}
                                     loading={loading}
                                 />
@@ -207,7 +232,18 @@ export default function CategoryManagementPage() {
     )
 }
 
-function CategoryModule({ title, icon, list, inputValue, onInputChange, onAdd, onDelete, loading, searchValue, onSearchChange }) {
+function CategoryModule({ title, icon, list, inputValue, onInputChange, onAdd, onDelete, onEdit, loading, searchValue, onSearchChange }) {
+    const [editingId, setEditingId] = useState(null);
+    const [editValue, setEditValue] = useState("");
+
+    const handleSaveEdit = async (id) => {
+        if (!editValue.trim()) return;
+        if (onEdit) {
+            await onEdit(id, editValue.trim());
+        }
+        setEditingId(null);
+    };
+
     const filteredList = list.filter(cat => 
         cat.name.toLowerCase().includes(searchValue.toLowerCase())
     );
@@ -262,15 +298,48 @@ function CategoryModule({ title, icon, list, inputValue, onInputChange, onAdd, o
                         ) : (
                             filteredList.map(cat => (
                                 <div key={cat.id} className="flex items-center justify-between p-3 px-4 hover:bg-muted/50 transition-colors group">
-                                    <span className="font-medium text-sm">{cat.name}</span>
-                                    <Button 
-                                        variant="ghost" 
-                                        size="icon" 
-                                        onClick={() => onDelete(cat.id)}
-                                        className="size-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10"
-                                    >
-                                        <IconTrash className="size-4" />
-                                    </Button>
+                                    {editingId === cat.id ? (
+                                        <div className="flex items-center gap-2 flex-1 mr-2">
+                                            <Input 
+                                                value={editValue} 
+                                                onChange={(e) => setEditValue(e.target.value)} 
+                                                className="h-8 text-sm"
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') handleSaveEdit(cat.id);
+                                                    if (e.key === 'Escape') setEditingId(null);
+                                                }}
+                                                autoFocus
+                                            />
+                                            <Button variant="ghost" size="icon" onClick={() => handleSaveEdit(cat.id)} className="size-8 text-green-500 hover:text-green-600 hover:bg-green-500/10">
+                                                <IconCheck className="size-4" />
+                                            </Button>
+                                            <Button variant="ghost" size="icon" onClick={() => setEditingId(null)} className="size-8 text-destructive hover:bg-destructive/10">
+                                                <IconX className="size-4" />
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <span className="font-medium text-sm">{cat.name}</span>
+                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="icon" 
+                                                    onClick={() => { setEditingId(cat.id); setEditValue(cat.name); }}
+                                                    className="size-8 text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
+                                                >
+                                                    <IconEdit className="size-4" />
+                                                </Button>
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="icon" 
+                                                    onClick={() => onDelete(cat.id)}
+                                                    className="size-8 text-destructive hover:bg-destructive/10"
+                                                >
+                                                    <IconTrash className="size-4" />
+                                                </Button>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             ))
                         )}
@@ -281,8 +350,11 @@ function CategoryModule({ title, icon, list, inputValue, onInputChange, onAdd, o
     )
 }
 
-function SectionModule({ title, type, categories, sections, newSection, setNewSection, onAdd, onDelete, onUpdateRank, onToggleCategory, loading }) {
+function SectionModule({ title, type, categories, sections, newSection, setNewSection, onAdd, onDelete, onUpdateRank, onEdit, onToggleCategory, loading }) {
     const [search, setSearch] = useState("");
+    const [editingId, setEditingId] = useState(null);
+    const [editSection, setEditSection] = useState({ name: "", selectedCategories: [] });
+
     const filteredCategories = categories.filter(cat => 
         cat.name.toLowerCase().includes(search.toLowerCase())
     );
@@ -397,52 +469,119 @@ function SectionModule({ title, type, categories, sections, newSection, setNewSe
                                     </div>
 
                                     <div className="flex-1">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div>
-                                                <h4 className="font-bold text-base">{sec.name}</h4>
-                                                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">Contains {sec.categories?.length || 0} categories</p>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <div className="flex items-center gap-1 bg-muted px-2 py-1 rounded-md">
-                                                    <span className="text-[10px] font-bold text-muted-foreground uppercase">Rank:</span>
-                                                    <input 
-                                                        type="number" 
-                                                        className="w-8 bg-transparent border-none p-0 text-xs font-bold focus:ring-0 text-center"
-                                                        defaultValue={sec.rank}
-                                                        onBlur={(e) => {
-                                                            const val = parseInt(e.target.value);
-                                                            if (val !== sec.rank && val > 0) {
-                                                                onUpdateRank(sec.id, val, type);
-                                                            }
-                                                        }}
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') {
-                                                                const val = parseInt(e.target.value);
-                                                                if (val !== sec.rank && val > 0) {
-                                                                    onUpdateRank(sec.id, val, type);
-                                                                }
-                                                                e.target.blur();
-                                                            }
-                                                        }}
+                                        {editingId === sec.id ? (
+                                            <div className="space-y-3">
+                                                <div className="flex items-center gap-2">
+                                                    <Input 
+                                                        value={editSection.name}
+                                                        onChange={(e) => setEditSection({ ...editSection, name: e.target.value })}
+                                                        className="h-8 font-bold text-base bg-background"
+                                                        placeholder="Section Name"
                                                     />
+                                                    <Button variant="ghost" size="icon" onClick={() => {
+                                                        if (editSection.name.trim()) {
+                                                            onEdit(sec.id, { name: editSection.name.trim(), categories: editSection.selectedCategories });
+                                                            setEditingId(null);
+                                                        }
+                                                    }} className="size-8 text-green-500 hover:bg-green-500/10">
+                                                        <IconCheck className="size-4" />
+                                                    </Button>
+                                                    <Button variant="ghost" size="icon" onClick={() => setEditingId(null)} className="size-8 text-destructive hover:bg-destructive/10">
+                                                        <IconX className="size-4" />
+                                                    </Button>
                                                 </div>
-                                                <Button 
-                                                    variant="ghost" 
-                                                    size="icon" 
-                                                    onClick={() => onDelete(sec.id)}
-                                                    className="size-8 text-destructive hover:bg-destructive/10"
-                                                >
-                                                    <IconTrash className="size-4" />
-                                                </Button>
+                                                <div className="space-y-1">
+                                                    <Label className="text-[10px] font-semibold text-muted-foreground uppercase">Categories:</Label>
+                                                    <div className="flex flex-wrap gap-1.5 mt-1 max-h-[100px] overflow-y-auto">
+                                                        {categories.map(cat => (
+                                                            <div 
+                                                                key={cat.id}
+                                                                onClick={() => {
+                                                                    setEditSection(prev => {
+                                                                        const exists = prev.selectedCategories.includes(cat.name);
+                                                                        if (exists) {
+                                                                            return { ...prev, selectedCategories: prev.selectedCategories.filter(c => c !== cat.name) };
+                                                                        } else {
+                                                                            return { ...prev, selectedCategories: [...prev.selectedCategories, cat.name] };
+                                                                        }
+                                                                    });
+                                                                }}
+                                                                className={`
+                                                                    flex items-center gap-1 px-2 py-0.5 rounded-md cursor-pointer transition-all text-[9px] font-bold uppercase
+                                                                    ${editSection.selectedCategories.includes(cat.name) 
+                                                                        ? "bg-primary border-primary text-primary-foreground border" 
+                                                                        : "bg-background border-border border text-muted-foreground hover:border-primary/50"}
+                                                                `}
+                                                            >
+                                                                {cat.name}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div className="flex flex-wrap gap-1.5 mt-2">
-                                            {sec.categories?.map((cat, idx) => (
-                                                <span key={idx} className="px-2 py-0.5 rounded-md bg-muted text-[9px] font-bold uppercase text-muted-foreground border border-border/20">
-                                                    {cat}
-                                                </span>
-                                            ))}
-                                        </div>
+                                        ) : (
+                                            <>
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div>
+                                                        <h4 className="font-bold text-base">{sec.name}</h4>
+                                                        <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">Contains {sec.categories?.length || 0} categories</p>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="flex items-center gap-1 bg-muted px-2 py-1 rounded-md">
+                                                            <span className="text-[10px] font-bold text-muted-foreground uppercase">Rank:</span>
+                                                            <input 
+                                                                type="number" 
+                                                                className="w-8 bg-transparent border-none p-0 text-xs font-bold focus:ring-0 text-center"
+                                                                defaultValue={sec.rank}
+                                                                onBlur={(e) => {
+                                                                    const val = parseInt(e.target.value);
+                                                                    if (val !== sec.rank && val > 0) {
+                                                                        onUpdateRank(sec.id, val, type);
+                                                                    }
+                                                                }}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter') {
+                                                                        const val = parseInt(e.target.value);
+                                                                        if (val !== sec.rank && val > 0) {
+                                                                            onUpdateRank(sec.id, val, type);
+                                                                        }
+                                                                        e.target.blur();
+                                                                    }
+                                                                }}
+                                                            />
+                                                        </div>
+                                                        <div className="flex opacity-0 group-hover:opacity-100 transition-opacity gap-1">
+                                                            <Button 
+                                                                variant="ghost" 
+                                                                size="icon" 
+                                                                onClick={() => {
+                                                                    setEditingId(sec.id);
+                                                                    setEditSection({ name: sec.name, selectedCategories: sec.categories || [] });
+                                                                }}
+                                                                className="size-8 text-blue-500 hover:bg-blue-500/10"
+                                                            >
+                                                                <IconEdit className="size-4" />
+                                                            </Button>
+                                                            <Button 
+                                                                variant="ghost" 
+                                                                size="icon" 
+                                                                onClick={() => onDelete(sec.id)}
+                                                                className="size-8 text-destructive hover:bg-destructive/10"
+                                                            >
+                                                                <IconTrash className="size-4" />
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-wrap gap-1.5 mt-2">
+                                                    {sec.categories?.map((cat, idx) => (
+                                                        <span key={idx} className="px-2 py-0.5 rounded-md bg-muted text-[9px] font-bold uppercase text-muted-foreground border border-border/20">
+                                                            {cat}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             ))

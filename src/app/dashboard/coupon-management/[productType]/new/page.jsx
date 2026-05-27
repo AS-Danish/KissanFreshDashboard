@@ -25,10 +25,10 @@ import { Switch } from "@/components/ui/switch"
 
 import { db } from "@/firebase/config";
 import { collection, addDoc, getDocs, query, where } from "firebase/firestore";
-import { useCategory } from "@/context/CategoryContext";
+import { useAppStore } from "@/store/useAppStore";
 
 export default function AddNewCoupon() {
-    const { categories } = useCategory();
+    const { categories } = useAppStore();
     const params = useParams();
     const productType = params.productType;
     const router = useRouter();

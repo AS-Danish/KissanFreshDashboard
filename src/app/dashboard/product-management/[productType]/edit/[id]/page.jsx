@@ -30,13 +30,13 @@ import { db, storage } from "@/firebase/config";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 
-import { useCategory } from "@/context/CategoryContext";
+import { useAppStore } from "@/store/useAppStore";
 import imageCompression from "browser-image-compression";
 
 const KISSAN_FRESH_TAGS = ["100% Organic", "Fresh", "Pure", "Farm-to-table", "Locally Sourced", "Vegan", "Gluten-Free"];
 const HOME_FOOD_TAGS = ["Homemade", "Preservative-free", "Traditional", "Authentic", "Mom's Recipe", "Spicy", "Healthy"];
 export default function EditProduct() {
-    const { categories } = useCategory();
+    const { categories } = useAppStore();
     const params = useParams();
     const router = useRouter();
     const productId = params.id;

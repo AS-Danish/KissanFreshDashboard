@@ -122,71 +122,124 @@ export default function OrderManagement() {
     const [statusFilter, setStatusFilter] = useState("all");
     const [currentPage, setCurrentPage] = useState(1);
     const [loading, setLoading] = useState(true);
-    const [selectedOrder, setSelectedOrder] = useState(null);
+    const [stats, setStats] = useState({ totalOrders: 0, processingOrders: 0, shippedOrders: 0, grossRevenue: 0 });
     const router = useRouter();
     const [ridersMap, setRidersMap] = useState({});
     const [usersMap, setUsersMap] = useState({});
+    
+    // Pagination states
+    const [cursorHistory, setCursorHistory] = useState([null]);
+    const [hasMore, setHasMore] = useState(true);
+    const [algoliaTotalPages, setAlgoliaTotalPages] = useState(1);
+    const [algoliaTotalHits, setAlgoliaTotalHits] = useState(0);
+
+    const loadStats = async () => {
+        const { getOrderStats } = await import("@/services/orderService");
+        const newStats = await getOrderStats();
+        setStats(newStats);
+    };
+
+    const fetchRelatedData = async (ordersList) => {
+        const userIds = [...new Set(ordersList.map(o => o.userId).filter(Boolean))];
+        const riderIds = [...new Set(ordersList.map(o => o.riderId).filter(Boolean))];
+        
+        // Fetch only needed users/riders (could be optimized with batched getDocs, using basic Promise.all for simplicity)
+        const { getDoc, doc } = await import("firebase/firestore");
+        
+        const newUsersMap = { ...usersMap };
+        const newRidersMap = { ...ridersMap };
+        
+        const userPromises = userIds.filter(id => !newUsersMap[id]).map(id => getDoc(doc(db, "users", id)));
+        const riderPromises = riderIds.filter(id => !newRidersMap[id]).map(id => getDoc(doc(db, "riders", id)));
+        
+        const userSnaps = await Promise.all(userPromises);
+        const riderSnaps = await Promise.all(riderPromises);
+        
+        userSnaps.forEach(snap => {
+            if (snap.exists()) {
+                newUsersMap[snap.id] = snap.data().name || snap.data().displayName || "Unknown User";
+            }
+        });
+        
+        riderSnaps.forEach(snap => {
+            if (snap.exists()) {
+                newRidersMap[snap.id] = snap.data().name;
+                if (snap.data().riderId) newRidersMap[snap.data().riderId] = snap.data().name;
+            }
+        });
+        
+        setUsersMap(newUsersMap);
+        setRidersMap(newRidersMap);
+    };
+
+    const loadOrders = async (pageIndex, reset = false) => {
+        setLoading(true);
+        try {
+            if (searchQuery.trim() !== "") {
+                const { performSearch } = await import("@/lib/algolia");
+                
+                let facetFilters = [];
+                if (statusFilter !== "all") facetFilters.push(`status:${statusFilter}`);
+
+                const options = {
+                    page: pageIndex - 1,
+                    hitsPerPage: ITEMS_PER_PAGE,
+                    facetFilters
+                };
+
+                const { hits, nbPages, nbHits } = await performSearch("orders", searchQuery, options);
+                const mappedOrders = hits.map(hit => ({ ...hit, id: hit.objectID }));
+                
+                setOrders(mappedOrders);
+                setAlgoliaTotalPages(nbPages);
+                setAlgoliaTotalHits(nbHits);
+                setHasMore(pageIndex < nbPages);
+                await fetchRelatedData(mappedOrders);
+            } else {
+                const { getPaginatedOrders } = await import("@/services/orderService");
+                const currentCursor = reset ? null : cursorHistory[pageIndex - 1];
+                
+                const { orders: fetchedOrders, lastVisible, hasMore: more } = await getPaginatedOrders(
+                    ITEMS_PER_PAGE, 
+                    currentCursor, 
+                    statusFilter
+                );
+                
+                setOrders(fetchedOrders);
+                setHasMore(more);
+                await fetchRelatedData(fetchedOrders);
+                
+                if (reset) {
+                    setCursorHistory([null, lastVisible]);
+                } else if (pageIndex === cursorHistory.length && more) {
+                    setCursorHistory(prev => [...prev, lastVisible]);
+                }
+            }
+        } catch (error) {
+            console.error("Error loading orders:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const ridersRef = collection(db, "riders");
-        const unsubscribeRiders = onSnapshot(ridersRef, (snapshot) => {
-            const map = {};
-            snapshot.docs.forEach(doc => {
-                map[doc.id] = doc.data().name;
-                if(doc.data().riderId) { // Fallback for alternative IDs
-                    map[doc.data().riderId] = doc.data().name;
-                }
-            });
-            setRidersMap(map);
-        });
-
-        const usersRef = collection(db, "users");
-        const unsubscribeUsers = onSnapshot(usersRef, (snapshot) => {
-            const map = {};
-            snapshot.docs.forEach(doc => {
-                map[doc.id] = doc.data().name || doc.data().displayName || "Unknown User";
-            });
-            setUsersMap(map);
-        });
-
-        const ordersRef = collection(db, "orders");
-
-        const q = query(ordersRef, orderBy("orderDate", "desc"));
-        
-        const unsubscribeOrders = onSnapshot(q, (snapshot) => {
-            const ordersData = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            setOrders(ordersData);
-            setLoading(false);
-        });
-
-        return () => {
-            unsubscribeOrders();
-            unsubscribeRiders();
-            unsubscribeUsers();
-        };
+        loadStats();
     }, []);
-
-    const filteredOrders = useMemo(() => {
-        return orders.filter((order) => {
-            const matchesSearch = 
-                order.orderNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                order.userId?.toLowerCase().includes(searchQuery.toLowerCase());
-            
-            const matchesStatus = statusFilter === "all" || order.status?.toLowerCase() === statusFilter.toLowerCase();
-            
-            return matchesSearch && matchesStatus;
-        });
-    }, [orders, searchQuery, statusFilter]);
-
-    const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE) || 1;
-    const paginatedOrders = filteredOrders.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
     useEffect(() => {
         setCurrentPage(1);
+        loadOrders(1, true);
     }, [searchQuery, statusFilter]);
+
+    useEffect(() => {
+        if (currentPage > 1) {
+            loadOrders(currentPage, false);
+        }
+    }, [currentPage]);
+
+    const isAlgoliaMode = searchQuery.trim() !== "";
+    const totalPages = isAlgoliaMode ? algoliaTotalPages : (hasMore ? currentPage + 1 : currentPage);
+    const paginatedOrders = orders;
 
     const handleViewDetails = (order) => {
         router.push(`/dashboard/order-management/${order.id}`);
@@ -237,7 +290,7 @@ export default function OrderManagement() {
                             <CardContent className="p-6 flex items-center justify-between">
                                 <div className="space-y-1">
                                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Orders</p>
-                                    <h3 className="text-2xl font-bold text-foreground">{orders.length}</h3>
+                                    <h3 className="text-2xl font-bold text-foreground">{stats.totalOrders}</h3>
                                 </div>
                                 <div className="h-10 w-10 bg-primary/10 text-primary rounded-lg flex items-center justify-center">
                                     <IconPackage className="h-6 w-6" />
@@ -248,7 +301,7 @@ export default function OrderManagement() {
                             <CardContent className="p-6 flex items-center justify-between">
                                 <div className="space-y-1">
                                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Processing</p>
-                                    <h3 className="text-2xl font-bold text-foreground">{orders.filter(o => o.status === 'PROCESSING').length}</h3>
+                                    <h3 className="text-2xl font-bold text-foreground">{stats.processingOrders}</h3>
                                 </div>
                                 <div className="h-10 w-10 bg-blue-500/10 text-blue-600 rounded-lg flex items-center justify-center">
                                     <IconRefresh className="h-6 w-6" />
@@ -259,7 +312,7 @@ export default function OrderManagement() {
                             <CardContent className="p-6 flex items-center justify-between">
                                 <div className="space-y-1">
                                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">In Transit</p>
-                                    <h3 className="text-2xl font-bold text-foreground">{orders.filter(o => o.status === 'SHIPPED').length}</h3>
+                                    <h3 className="text-2xl font-bold text-foreground">{stats.shippedOrders}</h3>
                                 </div>
                                 <div className="h-10 w-10 bg-purple-500/10 text-purple-600 rounded-lg flex items-center justify-center">
                                     <IconTruck className="h-6 w-6" />
@@ -270,7 +323,7 @@ export default function OrderManagement() {
                             <CardContent className="p-6 flex items-center justify-between">
                                 <div className="space-y-1">
                                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Gross Revenue</p>
-                                    <h3 className="text-2xl font-bold text-foreground">₹{orders.reduce((acc, o) => acc + (o.totalAmount || 0), 0).toLocaleString()}</h3>
+                                    <h3 className="text-2xl font-bold text-foreground">₹{stats.grossRevenue.toLocaleString()}</h3>
                                 </div>
                                 <div className="h-10 w-10 bg-secondary/10 text-secondary rounded-lg flex items-center justify-center">
                                     <IconCoin className="h-6 w-6" />
@@ -528,7 +581,7 @@ export default function OrderManagement() {
                     {totalPages > 1 && (
                         <div className="flex items-center justify-between border bg-card rounded-xl py-3 px-4 shadow-sm">
                             <div className="text-sm text-muted-foreground">
-                                Showing <span className="font-medium text-foreground">{((currentPage - 1) * ITEMS_PER_PAGE) + 1}</span> to <span className="font-medium text-foreground">{Math.min(currentPage * ITEMS_PER_PAGE, filteredOrders.length)}</span> of <span className="font-medium text-foreground">{filteredOrders.length}</span> orders
+                                Showing <span className="font-medium text-foreground">{((currentPage - 1) * ITEMS_PER_PAGE) + 1}</span> to <span className="font-medium text-foreground">{Math.min(currentPage * ITEMS_PER_PAGE, isAlgoliaMode ? algoliaTotalHits : ((currentPage - 1) * ITEMS_PER_PAGE) + orders.length)}</span> of <span className="font-medium text-foreground">{isAlgoliaMode ? algoliaTotalHits : 'Many'}</span> orders
                             </div>
                             <div className="flex items-center gap-2">
                                 <Button

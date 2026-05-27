@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/table"
 import { IconSearch, IconChevronLeft, IconChevronRight, IconEdit, IconCheck, IconX } from "@tabler/icons-react"
 
-import { useCategory } from "@/context/CategoryContext";
+import { useAppStore } from "@/store/useAppStore";
 import { updateCatalogVersion } from "@/services/appConfigService";
 
 const ITEMS_PER_PAGE = 5;
@@ -57,7 +57,7 @@ export default function StockManagement() {
     const params = useParams();
     const productType = params.productType; // "kissan-fresh" or "home-food"
 
-    const { categories } = useCategory();
+    const { categories } = useAppStore();
     const availableCategories = categories[productType === 'home-food' ? 'home-food' : 'kissan-fresh'] || [];
 
     const [products, setProducts] = useState([]);

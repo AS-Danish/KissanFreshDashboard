@@ -25,7 +25,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { IconSearch, IconArrowLeft, IconCheck } from "@tabler/icons-react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 
-import { useCategory } from "@/context/CategoryContext";
+import { useAppStore } from "@/store/useAppStore";
 import { updateCatalogVersion } from "@/services/appConfigService";
 
 // Custom hook for debouncing search query
@@ -50,7 +50,7 @@ export default function BulkAddStock() {
     const router = useRouter();
     const productType = params.productType; // "kissan-fresh" or "home-food"
 
-    const { categories } = useCategory();
+    const { categories } = useAppStore();
     const availableCategories = categories[productType === 'home-food' ? 'home-food' : 'kissan-fresh'] || [];
 
     const [products, setProducts] = useState([]);

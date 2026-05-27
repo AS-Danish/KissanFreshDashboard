@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { loginUser } from "@/services/authService";
-import { useAuth } from "@/context/AuthContext";
+import { useAppStore } from "@/store/useAppStore";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +20,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Loader2, LogIn, Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
-  const { user } = useAuth();
+  const user = useAppStore((state) => state.user);
   const router = useRouter();
 
   const [email, setEmail] = useState("");
@@ -42,7 +42,8 @@ export default function LoginPage() {
 
     try {
       await loginUser(email, password);
-      router.push("/dashboard");
+      // Wait for useAppStore's onAuthStateChanged to set the cookie and update the 'user' state.
+      // The useEffect will automatically redirect us to /dashboard when the state updates.
     } catch (err) {
       const firebaseErrors = {
         "auth/invalid-credential": "Invalid email or password.",
@@ -53,7 +54,6 @@ export default function LoginPage() {
         "auth/network-request-failed": "Network error. Check your connection.",
       };
       setError(firebaseErrors[err.code] ?? "Something went wrong. Please try again.");
-    } finally {
       setIsLoading(false);
     }
   };

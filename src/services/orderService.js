@@ -2,8 +2,20 @@ import {
   doc,
   runTransaction,
   serverTimestamp,
+  collection,
+  query,
+  orderBy,
+  limit,
+  startAfter,
+  getDocs,
+  where,
+  getCountFromServer,
+  getAggregateFromServer,
+  sum
 } from "firebase/firestore";
 import { db } from "../firebase/config";
+
+const ORDERS_COLLECTION = "orders";
 
 /**
  * Assigns or re-assigns an order to a specific slot and rider.
@@ -115,3 +127,75 @@ export const assignRiderToOrderTransaction = async (
     throw error;
   }
 };
+
+export const getPaginatedOrders = async (pageSize = 10, lastDoc = null, statusFilter = "all") => {
+  try {
+    const ordersRef = collection(db, ORDERS_COLLECTION);
+    
+    let queryConstraints = [];
+    if (statusFilter !== "all") {
+        queryConstraints.push(where("status", "==", statusFilter));
+    }
+    queryConstraints.push(orderBy("orderDate", "desc"));
+    queryConstraints.push(limit(pageSize));
+
+    if (lastDoc) {
+      queryConstraints.push(startAfter(lastDoc));
+    }
+
+    const q = query(ordersRef, ...queryConstraints);
+    const querySnapshot = await getDocs(q);
+    
+    const orders = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    return {
+      orders,
+      lastVisible: querySnapshot.docs[querySnapshot.docs.length - 1],
+      hasMore: querySnapshot.docs.length === pageSize
+    };
+  } catch (error) {
+    console.error("Error fetching paginated orders:", error);
+    throw error;
+  }
+};
+
+export const getOrderStats = async () => {
+  try {
+    const ordersRef = collection(db, ORDERS_COLLECTION);
+    
+    const totalSnap = await getCountFromServer(ordersRef);
+    const totalOrders = totalSnap.data().count;
+
+    const processingQuery = query(ordersRef, where("status", "==", "PROCESSING"));
+    const processingSnap = await getCountFromServer(processingQuery);
+    const processingOrders = processingSnap.data().count;
+
+    const shippedQuery = query(ordersRef, where("status", "==", "SHIPPED"));
+    const shippedSnap = await getCountFromServer(shippedQuery);
+    const shippedOrders = shippedSnap.data().count;
+
+    let grossRevenue = 0;
+    try {
+        const revenueSnap = await getAggregateFromServer(ordersRef, {
+            totalRevenue: sum('totalAmount')
+        });
+        grossRevenue = revenueSnap.data().totalRevenue || 0;
+    } catch (e) {
+        console.warn("Aggregate sum failed:", e);
+    }
+
+    return {
+        totalOrders,
+        processingOrders,
+        shippedOrders,
+        grossRevenue
+    };
+  } catch (error) {
+    console.error("Error fetching order stats:", error);
+    return { totalOrders: 0, processingOrders: 0, shippedOrders: 0, grossRevenue: 0 };
+  }
+};
+

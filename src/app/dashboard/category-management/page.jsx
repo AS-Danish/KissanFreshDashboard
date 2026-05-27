@@ -24,10 +24,10 @@ import {
     updateSection
 } from "@/services/categoryService"
 import { Checkbox } from "@/components/ui/checkbox"
-import { useCategory } from "@/context/CategoryContext";
+import { useAppStore } from "@/store/useAppStore";
 
 export default function CategoryManagementPage() {
-    const { categories, sections, loading } = useCategory();
+    const { categories, sections, loading } = useAppStore();
     
     // Form states
     const [newCategory, setNewCategory] = useState({ name: "", type: "home-food" });

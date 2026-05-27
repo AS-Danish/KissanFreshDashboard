@@ -9,7 +9,8 @@ import {
   serverTimestamp,
   orderBy,
   writeBatch,
-  onSnapshot
+  onSnapshot,
+  updateDoc
 } from "firebase/firestore";
 import { db } from "../firebase/config";
 import { updateCatalogVersion } from "./appConfigService";
@@ -106,6 +107,27 @@ export const deleteCategory = async (id) => {
     throw error;
   }
 };
+
+/**
+ * Update a category.
+ * @param {string} id 
+ * @param {string} name 
+ */
+export const updateCategory = async (id, name) => {
+  try {
+    const docRef = doc(db, CATEGORIES_COLLECTION, id);
+    await updateDoc(docRef, { name });
+    
+    // Update catalog version for cache busting
+    await updateCatalogVersion();
+    
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating category:", error);
+    throw error;
+  }
+};
+
 
 /**
  * Fetch all sections of a specific type.
@@ -275,6 +297,26 @@ export const deleteSection = async (id) => {
     return { success: true };
   } catch (error) {
     console.error("Error deleting section:", error);
+    throw error;
+  }
+};
+
+/**
+ * Update a section.
+ * @param {string} id 
+ * @param {Object} data 
+ */
+export const updateSection = async (id, data) => {
+  try {
+    const docRef = doc(db, SECTIONS_COLLECTION, id);
+    await updateDoc(docRef, data);
+    
+    // Update catalog version for cache busting
+    await updateCatalogVersion();
+    
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating section:", error);
     throw error;
   }
 };

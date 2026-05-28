@@ -28,6 +28,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
+import { Skeleton } from "@/components/ui/skeleton"
 import { IconSearch, IconChevronLeft, IconChevronRight, IconStarFilled, IconStar } from "@tabler/icons-react"
 import { toast } from "sonner"
 import { updateCatalogVersion } from "@/services/appConfigService";
@@ -195,7 +196,14 @@ export default function TodaysSpecial() {
                         </h3>
                         
                         {loadingSpecials ? (
-                             <p className="text-sm text-muted-foreground p-4">Loading specials...</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                                {Array(3).fill(0).map((_, idx) => (
+                                    <div key={idx} className="flex flex-col border bg-background rounded-lg overflow-hidden shadow-sm items-center p-3 relative">
+                                        <Skeleton className="h-24 w-24 mb-3 rounded-md" />
+                                        <Skeleton className="h-4 w-20" />
+                                    </div>
+                                ))}
+                            </div>
                         ) : specialProducts.length === 0 ? (
                              <p className="text-sm text-muted-foreground p-4 bg-background rounded-md border">
                                  No products currently marked as Today's Special. Select products below.
@@ -297,11 +305,15 @@ export default function TodaysSpecial() {
                             </TableHeader>
                             <TableBody>
                                 {loadingProducts ? (
-                                    <TableRow>
-                                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                            Loading products...
-                                        </TableCell>
-                                    </TableRow>
+                                    Array(5).fill(0).map((_, idx) => (
+                                        <TableRow key={idx}>
+                                            <TableCell><Skeleton className="h-12 w-12 rounded-md" /></TableCell>
+                                            <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                                            <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                                            <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                                            <TableCell className="text-right"><Skeleton className="h-8 w-20 ml-auto rounded-md" /></TableCell>
+                                        </TableRow>
+                                    ))
                                 ) : paginatedProducts.length === 0 ? (
                                     <TableRow>
                                         <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">

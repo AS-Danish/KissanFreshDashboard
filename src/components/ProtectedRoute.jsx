@@ -2,10 +2,11 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
+import { useAppStore } from "@/store/useAppStore";
 
 export default function ProtectedRoute({ children }) {
-  const { user, loading } = useAuth();
+  const user = useAppStore((state) => state.user);
+  const loading = useAppStore((state) => state.authLoading);
   const router = useRouter();
 
   useEffect(() => {

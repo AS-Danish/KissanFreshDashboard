@@ -26,6 +26,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Label } from "@/components/ui/label"
 import {
   Dialog,
@@ -433,16 +434,24 @@ export default function RiderManagement() {
                                 </TableHeader>
                                 <TableBody>
                                     {loading ? (
-                                        <TableRow>
-                                            <TableCell colSpan={6} className="text-center py-32">
-                                                <div className="flex flex-col items-center gap-4">
-                                                    <div className="h-16 w-16 bg-primary/10 rounded-3xl flex items-center justify-center animate-pulse">
-                                                        <IconRefresh className="h-8 w-8 text-primary animate-spin" />
+                                        Array(5).fill(0).map((_, idx) => (
+                                            <TableRow key={idx}>
+                                                <TableCell className="px-6 py-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <Skeleton className="h-10 w-10 rounded-full" />
+                                                        <div className="flex flex-col gap-1">
+                                                            <Skeleton className="h-5 w-32" />
+                                                            <Skeleton className="h-3 w-20" />
+                                                        </div>
                                                     </div>
-                                                    <span className="text-xs font-black tracking-[0.2em] text-primary uppercase">Scanning Fleet Database...</span>
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
+                                                </TableCell>
+                                                <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                                                <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                                                <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                                                <TableCell><Skeleton className="h-8 w-24 mx-auto" /></TableCell>
+                                                <TableCell className="text-right px-6"><Skeleton className="h-9 w-9 ml-auto rounded-xl" /></TableCell>
+                                            </TableRow>
+                                        ))
                                     ) : paginatedRiders.length === 0 ? (
                                         <TableRow>
                                             <TableCell colSpan={6} className="text-center py-32">

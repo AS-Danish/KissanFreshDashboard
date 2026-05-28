@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { doc, getDoc } from "firebase/firestore"
 import { db } from "@/firebase/config"
-import { useAuth } from "@/context/AuthContext"
+import { useAppStore } from "@/store/useAppStore"
 import { logoutUser } from "@/services/authService"
 import { useRouter } from "next/navigation"
 
@@ -38,7 +38,7 @@ import {
 
 export function NavUser() {
   const { isMobile } = useSidebar()
-  const { user } = useAuth()
+  const user = useAppStore((state) => state.user)
   const router = useRouter()
   const [userData, setUserData] = useState({
     name: "Loading...",
@@ -80,6 +80,8 @@ export function NavUser() {
   const handleLogout = async () => {
     try {
       await logoutUser()
+      // Manually clear the cookie instantly to prevent middleware from bouncing us back to dashboard
+      document.cookie = "auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
       router.push("/login")
     } catch (error) {
       console.error("Logout failed:", error)

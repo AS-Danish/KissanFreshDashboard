@@ -29,8 +29,9 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
+import { Skeleton } from "@/components/ui/skeleton"
 import { IconEdit, IconTrash, IconSearch, IconChevronLeft, IconChevronRight } from "@tabler/icons-react"
-import { useCategory } from "@/context/CategoryContext";
+import { useAppStore } from "@/store/useAppStore";
 import { updateCatalogVersion } from "@/services/appConfigService";
 
 const ITEMS_PER_PAGE = 5;
@@ -41,7 +42,7 @@ const HOME_FOOD_TAGS = ["Homemade", "Preservative-free", "Traditional", "Authent
 export default function ProductManagement() {
     const params = useParams();
     const productType = params.productType; // "kissan-fresh" or "home-food"
-    const { categories } = useCategory();
+    const { categories } = useAppStore();
 
     const availableCategories = categories[productType === 'home-food' ? 'home-food' : 'kissan-fresh'] || [];
     const availableTags = productType === 'home-food' ? HOME_FOOD_TAGS : KISSAN_FRESH_TAGS;
@@ -53,39 +54,100 @@ export default function ProductManagement() {
     const [tagFilter, setTagFilter] = useState("all");
     const [currentPage, setCurrentPage] = useState(1);
     const [loading, setLoading] = useState(true);
+    
+    // Pagination states
+    const [cursorHistory, setCursorHistory] = useState([null]);
+    const [hasMore, setHasMore] = useState(true);
+    const [algoliaTotalPages, setAlgoliaTotalPages] = useState(1);
+    const [algoliaTotalHits, setAlgoliaTotalHits] = useState(0);
+
+    const loadProducts = async (pageIndex, reset = false) => {
+        setLoading(true);
+        try {
+            if (searchQuery.trim() !== "") {
+                const { performSearch } = await import("@/lib/algolia");
+                let numericFilters = [];
+                if (priceFilter === "under100") numericFilters.push("price < 100");
+                else if (priceFilter === "100to500") numericFilters.push("price >= 100", "price <= 500");
+                else if (priceFilter === "over500") numericFilters.push("price > 500");
+                
+                let facetFilters = [`productOrigin:${productType}`];
+                if (categoryFilter !== "all") facetFilters.push(`category:${categoryFilter}`);
+                if (tagFilter !== "all") facetFilters.push(`tags:${tagFilter}`);
+
+                const options = {
+                    page: pageIndex - 1,
+                    hitsPerPage: ITEMS_PER_PAGE,
+                    facetFilters,
+                    numericFilters
+                };
+
+                const { hits, nbPages, nbHits } = await performSearch("products", searchQuery, options);
+                
+                const mappedProducts = hits.map(hit => ({ ...hit, id: hit.objectID }));
+                setProducts(mappedProducts);
+                setAlgoliaTotalPages(nbPages);
+                setAlgoliaTotalHits(nbHits);
+                setHasMore(pageIndex < nbPages);
+            } else {
+                const { getPaginatedProducts } = await import("@/services/productService");
+                const currentCursor = reset ? null : cursorHistory[pageIndex - 1];
+                const filters = { category: categoryFilter, price: priceFilter, tag: tagFilter };
+                
+                const { products: fetchedProducts, lastVisible, hasMore: more } = await getPaginatedProducts(
+                    productType, 
+                    ITEMS_PER_PAGE, 
+                    currentCursor, 
+                    filters
+                );
+                
+                // Client side filtering fallback for unindexed Firebase queries
+                let filtered = fetchedProducts;
+                if (priceFilter !== "all") {
+                    filtered = filtered.filter(p => {
+                        if (priceFilter === "under100") return p.price < 100;
+                        if (priceFilter === "100to500") return p.price >= 100 && p.price <= 500;
+                        if (priceFilter === "over500") return p.price > 500;
+                        return true;
+                    });
+                }
+                if (tagFilter !== "all") {
+                    filtered = filtered.filter(p => p.tags && p.tags.includes(tagFilter));
+                }
+
+                setProducts(filtered);
+                setHasMore(more);
+                
+                if (reset) {
+                    setCursorHistory([null, lastVisible]);
+                } else if (pageIndex === cursorHistory.length && more) {
+                    setCursorHistory(prev => [...prev, lastVisible]);
+                }
+            }
+        } catch (error) {
+            console.error("Error loading products:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const unsubscribe = onSnapshot(collection(db, "products"), (snapshot) => {
-            let productData = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
+        setCurrentPage(1);
+        loadProducts(1, true);
+    }, [productType, searchQuery, categoryFilter, priceFilter, tagFilter]);
 
-            // Filter to include only products matching the current type
-            productData = productData.filter(p => {
-                const origin = p.productOrigin || "kissan-fresh"; // default legacy products
-                if (productType === "home-food") {
-                    return origin === "home-food";
-                } else {
-                    return origin === "kissan-fresh";
-                }
-            });
-
-            productData.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-            setProducts(productData);
-            setLoading(false);
-        });
-
-        return () => unsubscribe();
-    }, [productType]);
+    useEffect(() => {
+        if (currentPage > 1) {
+            loadProducts(currentPage, false);
+        }
+    }, [currentPage]);
 
     const handleDelete = async (id) => {
         if (window.confirm("Are you sure you want to delete this product?")) {
             try {
                 await deleteDoc(doc(db, "products", id));
-                
-                // Update catalog version for cache busting
                 await updateCatalogVersion();
+                loadProducts(currentPage, false);
             } catch (error) {
                 console.error("Error deleting document: ", error);
                 alert("Failed to delete product.");
@@ -93,34 +155,9 @@ export default function ProductManagement() {
         }
     };
 
-    const filteredProducts = useMemo(() => {
-        return products.filter((product) => {
-            // Search Match
-            const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
-
-            // Category Match
-            const matchesCategory = categoryFilter === "all" || (product.category && product.category.toLowerCase() === categoryFilter.toLowerCase());
-
-            // Price Match
-            let matchesPrice = true;
-            if (priceFilter === "under100") matchesPrice = product.price < 100;
-            else if (priceFilter === "100to500") matchesPrice = product.price >= 100 && product.price <= 500;
-            else if (priceFilter === "over500") matchesPrice = product.price > 500;
-
-            // Tag Match
-            const matchesTag = tagFilter === "all" || (product.tags && product.tags.includes(tagFilter));
-
-            return matchesSearch && matchesCategory && matchesPrice && matchesTag;
-        });
-    }, [products, searchQuery, categoryFilter, priceFilter, tagFilter]);
-
-    const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE) || 1;
-    const paginatedProducts = filteredProducts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
-
-    // Reset pagination when filters change
-    useMemo(() => {
-        setCurrentPage(1);
-    }, [searchQuery, categoryFilter, priceFilter, tagFilter]);
+    const isAlgoliaMode = searchQuery.trim() !== "";
+    const totalPages = isAlgoliaMode ? algoliaTotalPages : (hasMore ? currentPage + 1 : currentPage);
+    const paginatedProducts = products;
 
     return (
         <SidebarProvider
@@ -207,14 +244,16 @@ export default function ProductManagement() {
                             </TableHeader>
                             <TableBody>
                                 {loading ? (
-                                    <TableRow>
-                                        <TableCell colSpan={6} className="text-center py-20">
-                                            <div className="flex flex-col items-center gap-3">
-                                                <div className="h-8 w-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-                                                <p className="text-sm text-muted-foreground font-medium italic">Loading products...</p>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
+                                    Array(5).fill(0).map((_, idx) => (
+                                        <TableRow key={idx}>
+                                            <TableCell><Skeleton className="h-12 w-12 rounded-lg" /></TableCell>
+                                            <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                                            <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                                            <TableCell><Skeleton className="h-5 w-48" /></TableCell>
+                                            <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                                            <TableCell className="text-right"><Skeleton className="h-8 w-16 ml-auto" /></TableCell>
+                                        </TableRow>
+                                    ))
                                 ) : paginatedProducts.length === 0 ? (
                                     <TableRow>
                                         <TableCell colSpan={6} className="text-center py-20 text-muted-foreground">
@@ -292,7 +331,7 @@ export default function ProductManagement() {
                     {totalPages > 1 && (
                         <div className="flex items-center justify-between border-t border-b py-4 px-2 mt-2">
                             <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-                                Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, filteredProducts.length)} of {filteredProducts.length} entries
+                                Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, isAlgoliaMode ? algoliaTotalHits : ((currentPage - 1) * ITEMS_PER_PAGE) + products.length)} of {isAlgoliaMode ? algoliaTotalHits : 'Many'} entries
                             </div>
                             <div className="flex items-center gap-4">
                                 <Button

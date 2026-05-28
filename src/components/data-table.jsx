@@ -3,6 +3,7 @@
 import * as React from "react"
 import { IconCircleCheckFilled, IconLoader, IconClock } from "@tabler/icons-react"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Table,
   TableBody,
@@ -13,7 +14,7 @@ import {
 } from "@/components/ui/table"
 
 export function DataTable({
-  data
+  data, loading = false
 }) {
   return (
     <div className="flex flex-col gap-4 px-4 lg:px-6">
@@ -28,7 +29,16 @@ export function DataTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data?.length ? (
+            {loading ? (
+              Array(5).fill(0).map((_, idx) => (
+                <TableRow key={idx}>
+                  <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                </TableRow>
+              ))
+            ) : data?.length ? (
               data.map((row) => (
                 <TableRow key={row.id}>
                   <TableCell className="font-medium">{row.id}</TableCell>

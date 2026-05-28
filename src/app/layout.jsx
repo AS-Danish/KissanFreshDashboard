@@ -1,5 +1,4 @@
-import { AuthProvider } from "@/context/AuthContext";
-import { CategoryProvider } from "@/context/CategoryContext";
+import { StoreInitializer } from "@/components/StoreInitializer";
 import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
@@ -13,9 +12,9 @@ export default function RootLayout({ children }) {
     <html lang="en" suppressHydrationWarning>
       <body>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <CategoryProvider>
-            <AuthProvider>{children}</AuthProvider>
-          </CategoryProvider>
+          <StoreInitializer>
+            {children}
+          </StoreInitializer>
         </ThemeProvider>
       </body>
     </html>

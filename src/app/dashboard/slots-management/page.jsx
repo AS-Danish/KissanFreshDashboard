@@ -19,6 +19,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Label } from "@/components/ui/label"
 import {
   Dialog,
@@ -359,16 +360,31 @@ export default function SlotsManagement() {
                                 </TableHeader>
                                 <TableBody>
                                     {loading ? (
-                                        <TableRow>
-                                            <TableCell colSpan={6} className="text-center py-32">
-                                                <div className="flex flex-col items-center gap-4">
-                                                    <div className="h-16 w-16 bg-primary/10 rounded-3xl flex items-center justify-center animate-pulse">
-                                                        <IconRefresh className="h-8 w-8 text-primary animate-spin" />
+                                        Array(5).fill(0).map((_, idx) => (
+                                            <TableRow key={idx}>
+                                                <TableCell className="px-6 py-4">
+                                                    <div className="flex flex-col gap-1">
+                                                        <Skeleton className="h-5 w-32" />
+                                                        <Skeleton className="h-3 w-48" />
                                                     </div>
-                                                    <span className="text-xs font-black tracking-[0.2em] text-primary uppercase">Loading Slots...</span>
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
+                                                </TableCell>
+                                                <TableCell className="text-center"><Skeleton className="h-8 w-20 mx-auto rounded-full" /></TableCell>
+                                                <TableCell className="text-center"><Skeleton className="h-8 w-24 mx-auto rounded-lg" /></TableCell>
+                                                <TableCell className="text-center">
+                                                    <div className="flex flex-col items-center gap-1.5">
+                                                        <Skeleton className="h-5 w-16" />
+                                                        <Skeleton className="h-1.5 w-24 rounded-full" />
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="text-center"><Skeleton className="h-6 w-16 mx-auto rounded-full" /></TableCell>
+                                                <TableCell className="text-right px-6">
+                                                    <div className="flex justify-end gap-2">
+                                                        <Skeleton className="h-8 w-20 rounded-md" />
+                                                        <Skeleton className="h-8 w-8 rounded-md" />
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
                                     ) : filteredSlots.length === 0 ? (
                                         <TableRow>
                                             <TableCell colSpan={6} className="text-center py-32">

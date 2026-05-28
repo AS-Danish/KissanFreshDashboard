@@ -24,10 +24,11 @@ import {
     updateSection
 } from "@/services/categoryService"
 import { Checkbox } from "@/components/ui/checkbox"
-import { useCategory } from "@/context/CategoryContext";
+import { useAppStore } from "@/store/useAppStore";
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function CategoryManagementPage() {
-    const { categories, sections, loading } = useCategory();
+    const { categories, sections, loading } = useAppStore();
     
     // Form states
     const [newCategory, setNewCategory] = useState({ name: "", type: "home-food" });
@@ -287,10 +288,14 @@ function CategoryModule({ title, icon, list, inputValue, onInputChange, onAdd, o
                     
                     <div className="bg-muted/30 rounded-xl border border-border/50 divide-y divide-border/30 overflow-hidden max-h-[400px] overflow-y-auto custom-scrollbar">
                         {loading && list.length === 0 ? (
-                             <div className="p-8 flex flex-col items-center gap-2">
-                                <div className="size-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-                                <p className="text-xs text-muted-foreground italic">Fetching categories...</p>
-                             </div>
+                            <div className="p-4 space-y-3">
+                                {Array(4).fill(0).map((_, idx) => (
+                                    <div key={idx} className="flex justify-between items-center">
+                                        <Skeleton className="h-5 w-32" />
+                                        <Skeleton className="h-8 w-16" />
+                                    </div>
+                                ))}
+                            </div>
                         ) : filteredList.length === 0 ? (
                             <p className="p-8 text-center text-sm text-muted-foreground italic">
                                 {searchValue ? "No categories matching your search." : "No categories yet."}

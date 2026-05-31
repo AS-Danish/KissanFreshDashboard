@@ -31,9 +31,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user) {
-      router.replace("/dashboard");
+      window.location.replace("/dashboard");
     }
-  }, [user, router]);
+  }, [user]);
 
   const handleLogin = async (e) => {
     e.preventDefault();

@@ -20,6 +20,7 @@ module.exports = {
     "comma-dangle": "off",
     "indent": "off",
     "no-trailing-spaces": "off",
+    "linebreak-style": "off",
   },
   overrides: [
     {

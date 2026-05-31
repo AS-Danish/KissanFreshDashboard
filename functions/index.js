@@ -269,6 +269,10 @@ exports.createOrder = require("firebase-functions/v2/https")
 
       try {
         const result = await db.runTransaction(async (transaction) => {
+          const userRef = db.collection("users").doc(auth.uid);
+          const userSnap = await transaction.get(userRef);
+          const customerName = userSnap.exists ? (userSnap.data()?.name || userSnap.data()?.displayName || "Guest") : "Guest";
+
           const productRefs = orderData.items.map((item) =>
             db.collection("products").doc(item.productId));
           const productSnaps = await transaction.getAll(...productRefs);
@@ -387,6 +391,7 @@ exports.createOrder = require("firebase-functions/v2/https")
             slotId: selectedSlotDoc.id,
             riderId: selectedRiderDoc.id,
             status: "ASSIGNED",
+            customerName: customerName,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             assignedAt: admin.firestore.FieldValue.serverTimestamp(),
           };
@@ -427,6 +432,47 @@ exports.createOrder = require("firebase-functions/v2/https")
           }
         } catch (err) {
           console.error(`Error sending FCM notification for order ${result.id}:`, err);
+        }
+
+        // 6b. Send FCM Notification to Admin Device (Non-blocking)
+        try {
+          const adminFcmSnap = await db.collection("admin_config").doc("fcm").get();
+          const adminFcmToken = adminFcmSnap.data()?.token;
+
+          if (adminFcmToken) {
+            const customerName = result.customerName || "Customer";
+            const adminMessage = {
+              notification: {
+                title: "New Order Arrived!",
+                body: `New Order Arrived from "${customerName}"`,
+              },
+              android: {
+                notification: {
+                  channelId: "high_importance_channel",
+                  sound: "loud_alert",
+                },
+              },
+              apns: {
+                payload: {
+                  aps: {
+                    sound: "loud_alert.caf",
+                  },
+                },
+              },
+              data: {
+                orderId: result.id,
+                type: "NEW_ORDER_ADMIN",
+              },
+              token: adminFcmToken,
+            };
+
+            await admin.messaging().send(adminMessage);
+            console.log(`Admin FCM notification sent to single device.`);
+          } else {
+            console.log("No admin FCM token found in admin_config/fcm.");
+          }
+        } catch (adminErr) {
+          console.error("Error sending admin FCM notification:", adminErr);
         }
 
         // 7. Send Telegram Notification to Admin (Non-blocking)

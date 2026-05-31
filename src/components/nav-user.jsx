@@ -82,7 +82,7 @@ export function NavUser() {
       await logoutUser()
       // Manually clear the cookie instantly to prevent middleware from bouncing us back to dashboard
       document.cookie = "auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
-      router.push("/login")
+      window.location.replace("/login")
     } catch (error) {
       console.error("Logout failed:", error)
     }

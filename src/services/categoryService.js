@@ -14,6 +14,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase/config";
 import { updateCatalogVersion } from "./appConfigService";
+import { logAdminAction } from "./loggerService";
 
 const CATEGORIES_COLLECTION = "categories";
 const SECTIONS_COLLECTION = "sections";
@@ -82,6 +83,9 @@ export const addCategory = async (name, type) => {
     // Update catalog version for cache busting
     await updateCatalogVersion();
     
+    // Log the action
+    await logAdminAction("CATEGORY_ADDED", "CATEGORY", docRef.id, { name, type });
+    
     return { id: docRef.id, success: true };
   } catch (error) {
     console.error("Error adding category:", error);
@@ -101,6 +105,8 @@ export const deleteCategory = async (id) => {
     // Update catalog version for cache busting
     await updateCatalogVersion();
     
+    await logAdminAction("CATEGORY_DELETED", "CATEGORY", id, {});
+
     return { success: true };
   } catch (error) {
     console.error("Error deleting category:", error);
@@ -121,6 +127,8 @@ export const updateCategory = async (id, name) => {
     // Update catalog version for cache busting
     await updateCatalogVersion();
     
+    await logAdminAction("CATEGORY_UPDATED", "CATEGORY", id, { name });
+
     return { success: true };
   } catch (error) {
     console.error("Error updating category:", error);
@@ -210,6 +218,8 @@ export const addSection = async (name, type, categories, rank) => {
     // Update catalog version for cache busting
     await updateCatalogVersion();
     
+    await logAdminAction("SECTION_ADDED", "SECTION", docRef.id, { name, type, rank: Number(finalRank) });
+
     return { id: docRef.id, success: true };
   } catch (error) {
     console.error("Error adding section:", error);
@@ -294,6 +304,8 @@ export const deleteSection = async (id) => {
     // Update catalog version for cache busting
     await updateCatalogVersion();
     
+    await logAdminAction("SECTION_DELETED", "SECTION", id, {});
+
     return { success: true };
   } catch (error) {
     console.error("Error deleting section:", error);
@@ -314,6 +326,8 @@ export const updateSection = async (id, data) => {
     // Update catalog version for cache busting
     await updateCatalogVersion();
     
+    await logAdminAction("SECTION_UPDATED", "SECTION", id, data);
+
     return { success: true };
   } catch (error) {
     console.error("Error updating section:", error);

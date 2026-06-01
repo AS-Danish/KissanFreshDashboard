@@ -41,9 +41,23 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      await loginUser(email, password);
-      // Wait for useAppStore's onAuthStateChanged to set the cookie and update the 'user' state.
-      // The useEffect will automatically redirect us to /dashboard when the state updates.
+      const userCredential = await loginUser(email, password);
+      const firebaseUser = userCredential.user;
+
+      // Verify admin role directly in the form submission
+      const { doc, getDoc } = await import("firebase/firestore");
+      const { db } = await import("@/firebase/config");
+      const userDocRef = doc(db, "users", firebaseUser.uid);
+      const userDocSnap = await getDoc(userDocRef);
+
+      if (userDocSnap.exists() && userDocSnap.data()?.role?.toUpperCase() === "ADMIN") {
+        // Success. The global state will redirect us to /dashboard automatically
+      } else {
+        const { logoutUser } = await import("@/services/authService");
+        await logoutUser();
+        setError("Access denied. Admin account required.");
+        setIsLoading(false);
+      }
     } catch (err) {
       const firebaseErrors = {
         "auth/invalid-credential": "Invalid email or password.",

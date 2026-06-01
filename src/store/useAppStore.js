@@ -8,11 +8,31 @@ export const useAppStore = create((set, get) => ({
   authLoading: true,
 
   initAuth: () => {
-    return listenToAuthChanges((firebaseUser) => {
-      set({ user: firebaseUser, authLoading: false });
+    return listenToAuthChanges(async (firebaseUser) => {
       if (firebaseUser) {
-        document.cookie = "auth=true; path=/; max-age=2592000; SameSite=Lax"; // 30 days
+        set({ authLoading: true });
+        try {
+          const { doc, getDoc } = await import("firebase/firestore");
+          const { db } = await import("@/firebase/config");
+          const userDocRef = doc(db, "users", firebaseUser.uid);
+          const userDocSnap = await getDoc(userDocRef);
+
+          if (userDocSnap.exists() && userDocSnap.data()?.role?.toUpperCase() === "ADMIN") {
+            set({ user: firebaseUser, authLoading: false });
+            document.cookie = "auth=true; path=/; max-age=2592000; SameSite=Lax"; // 30 days
+          } else {
+            const { logoutUser } = await import("@/services/authService");
+            await logoutUser();
+            set({ user: null, authLoading: false });
+            document.cookie = "auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
+          }
+        } catch (error) {
+          console.error("Error verifying admin role", error);
+          set({ user: null, authLoading: false });
+          document.cookie = "auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
+        }
       } else {
+        set({ user: null, authLoading: false });
         document.cookie = "auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
       }
     });

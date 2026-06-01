@@ -179,8 +179,13 @@ const data = {
   documents: [
     {
       name: "Sales Report",
-      url: "/reports/sales",
+      url: "/dashboard/reports/sales",
       icon: IconReport,
+    },
+    {
+      name: "Audit Logs",
+      url: "/dashboard/reports/audit",
+      icon: IconListDetails,
     },
   ],
 }

@@ -8,6 +8,7 @@ import { getAvailableSlotsQuery } from "@/services/slotService"
 import { assignRiderToOrderTransaction } from "@/services/orderService"
 import { toast } from "sonner"
 import { useRef } from "react"
+import { logAdminAction } from "@/services/loggerService"
 import { useReactToPrint } from "react-to-print"
 
 import { AppSidebar } from "@/components/app-sidebar"
@@ -213,6 +214,11 @@ export default function OrderDetailsPage() {
                 status: newStatus,
                 updatedAt: new Date().toISOString()
             })
+            
+            await logAdminAction("ORDER_STATUS_CHANGED", "ORDER", order.id, {
+                newStatus: newStatus
+            })
+            
             toast.success(`Order status updated to ${newStatus}`)
         } catch (error) {
             console.error("Error updating status:", error)

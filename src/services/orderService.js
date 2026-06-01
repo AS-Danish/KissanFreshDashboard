@@ -169,9 +169,9 @@ export const getOrderStats = async () => {
     const totalSnap = await getCountFromServer(ordersRef);
     const totalOrders = totalSnap.data().count;
 
-    const processingQuery = query(ordersRef, where("status", "==", "PROCESSING"));
-    const processingSnap = await getCountFromServer(processingQuery);
-    const processingOrders = processingSnap.data().count;
+    const assignedQuery = query(ordersRef, where("status", "==", "ASSIGNED"));
+    const assignedSnap = await getCountFromServer(assignedQuery);
+    const assignedOrders = assignedSnap.data().count;
 
     const deliveredQuery = query(ordersRef, where("status", "==", "DELIVERED"));
     const deliveredSnap = await getCountFromServer(deliveredQuery);
@@ -210,14 +210,14 @@ export const getOrderStats = async () => {
 
     return {
         totalOrders,
-        processingOrders,
+        assignedOrders,
         shippedOrders,
         deliveredOrders,
         grossRevenue
     };
   } catch (error) {
     console.error("Error fetching order stats:", error);
-    return { totalOrders: 0, processingOrders: 0, shippedOrders: 0, deliveredOrders: 0, grossRevenue: 0 };
+    return { totalOrders: 0, assignedOrders: 0, shippedOrders: 0, deliveredOrders: 0, grossRevenue: 0 };
   }
 };
 
@@ -264,5 +264,37 @@ export const getChartData = async (days = 90) => {
   } catch (error) {
     console.error("Error fetching chart data:", error);
     return [];
+  }
+};
+
+export const getOrdersByDateRange = async (startDate, endDate) => {
+  try {
+    const ordersRef = collection(db, ORDERS_COLLECTION);
+    
+    // We fetch all orders within range. Using orderBy and filter.
+    // If we don't have composite indexes, we might need to fetch and filter,
+    // but typically we can do a query with where on a single field and then filter or sort in memory if needed.
+    // Assuming orderDate is stored as an ISO string or Timestamp.
+    
+    // Simplest approach without complex indexes:
+    // We just get them ordered by orderDate descending, and fetch until we hit the start date.
+    // But for a Sales Report, getting all might be fine if there aren't millions of orders per month.
+    // Let's do a simple query where orderDate >= startDate and <= endDate.
+    const q = query(
+        ordersRef, 
+        where("orderDate", ">=", startDate),
+        where("orderDate", "<=", endDate),
+        orderBy("orderDate", "desc")
+    );
+    
+    const querySnapshot = await getDocs(q);
+    
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+  } catch (error) {
+    console.error("Error fetching orders by date range:", error);
+    throw error;
   }
 };

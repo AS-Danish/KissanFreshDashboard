@@ -4,6 +4,8 @@ import { useState, useMemo, useEffect } from "react"
 import { db } from "@/firebase/config"
 import { collection, onSnapshot, query, orderBy, doc, updateDoc } from "firebase/firestore"
 import { AppSidebar } from "@/components/app-sidebar"
+import { algoliaIndex } from "@/lib/algolia"
+import { logAdminAction } from "@/services/loggerService"
 import { SiteHeader } from "@/components/site-header"
 import {
     SidebarInset,
@@ -254,6 +256,10 @@ export default function OrderManagement() {
             await updateDoc(orderRef, {
                 status: newStatus,
                 updatedAt: new Date().toISOString()
+            })
+            
+            await logAdminAction("ORDER_STATUS_CHANGED", "ORDER", orderId, {
+                newStatus: newStatus
             })
             toast.success(`Order status: ${newStatus}`)
             setOrders(prevOrders => prevOrders.map(order => 

@@ -32,6 +32,7 @@ import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 
 import { useAppStore } from "@/store/useAppStore";
 import imageCompression from "browser-image-compression";
+import { logAdminAction } from "@/services/loggerService";
 
 const KISSAN_FRESH_TAGS = ["100% Organic", "Fresh", "Pure", "Farm-to-table", "Locally Sourced", "Vegan", "Gluten-Free"];
 const HOME_FOOD_TAGS = ["Homemade", "Preservative-free", "Traditional", "Authentic", "Mom's Recipe", "Spicy", "Healthy"];
@@ -157,8 +158,16 @@ export default function AddNewProduct() {
                 stockCount: 0
             };
 
-            await addDoc(collection(db, "products"), productData);
+            const docRef = await addDoc(collection(db, "products"), productData);
             
+            // Log the action
+            await logAdminAction("PRODUCT_ADDED", "PRODUCT", docRef.id, {
+                name: productData.name,
+                category: productData.category,
+                price: productData.price,
+                productOrigin: productData.productOrigin
+            });
+
             // Update catalog version for cache busting
             await updateCatalogVersion();
 

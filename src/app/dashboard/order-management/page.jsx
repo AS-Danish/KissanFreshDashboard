@@ -125,7 +125,7 @@ export default function OrderManagement() {
     const [statusFilter, setStatusFilter] = useState("all");
     const [currentPage, setCurrentPage] = useState(1);
     const [loading, setLoading] = useState(true);
-    const [stats, setStats] = useState({ totalOrders: 0, processingOrders: 0, shippedOrders: 0, grossRevenue: 0 });
+    const [stats, setStats] = useState({ totalOrders: 0, assignedOrders: 0, shippedOrders: 0, grossRevenue: 0 });
     const router = useRouter();
     const [ridersMap, setRidersMap] = useState({});
     const [usersMap, setUsersMap] = useState({});
@@ -312,8 +312,8 @@ export default function OrderManagement() {
                         <Card className="rounded-xl border shadow-sm">
                             <CardContent className="p-6 flex items-center justify-between">
                                 <div className="space-y-1">
-                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Processing</p>
-                                    <h3 className="text-2xl font-bold text-foreground">{stats.processingOrders}</h3>
+                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Assigned</p>
+                                    <h3 className="text-2xl font-bold text-foreground">{stats.assignedOrders}</h3>
                                 </div>
                                 <div className="h-10 w-10 bg-blue-500/10 text-blue-600 rounded-lg flex items-center justify-center">
                                     <IconRefresh className="h-6 w-6" />
@@ -364,7 +364,6 @@ export default function OrderManagement() {
                                     <SelectContent>
                                         <SelectItem value="all" className="text-xs font-semibold uppercase">All Status</SelectItem>
                                         <SelectItem value="ASSIGNED" className="text-xs font-semibold uppercase text-indigo-600">Assigned</SelectItem>
-                                        <SelectItem value="PROCESSING" className="text-xs font-semibold uppercase text-blue-600">Processing</SelectItem>
                                         <SelectItem value="OUT FOR DELIVERY" className="text-xs font-semibold uppercase text-amber-600">Out for Delivery</SelectItem>
                                         <SelectItem value="SHIPPED" className="text-xs font-semibold uppercase text-purple-600">In Transit</SelectItem>
                                         <SelectItem value="DELIVERED" className="text-xs font-semibold uppercase text-secondary">Delivered</SelectItem>
@@ -535,11 +534,11 @@ export default function OrderManagement() {
                                                             <DropdownMenuContent align="end" className="w-[200px] rounded-2xl shadow-2xl border-2 p-2 bg-white dark:bg-card">
                                                                 <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground p-3">Lifecycle Control</DropdownMenuLabel>
                                                                 <DropdownMenuSeparator />
-                                                                <DropdownMenuItem onClick={(e) => handleQuickStatusUpdate(e, order.id, 'PROCESSING')} className="rounded-xl flex items-center gap-3 py-3 font-bold text-xs uppercase tracking-tight focus:bg-blue-50 focus:text-blue-700 dark:focus:bg-blue-900/20">
-                                                                    <div className="h-8 w-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                                                                        <IconPackage className="h-4 w-4 text-blue-600" />
+                                                                <DropdownMenuItem onClick={(e) => handleQuickStatusUpdate(e, order.id, 'ASSIGNED')} className="rounded-xl flex items-center gap-3 py-3 font-bold text-xs uppercase tracking-tight focus:bg-indigo-50 focus:text-indigo-700 dark:focus:bg-indigo-900/20">
+                                                                    <div className="h-8 w-8 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center">
+                                                                        <IconPackage className="h-4 w-4 text-indigo-600" />
                                                                     </div>
-                                                                    Processing
+                                                                    Assigned
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem onClick={(e) => handleQuickStatusUpdate(e, order.id, 'OUT FOR DELIVERY')} className="rounded-xl flex items-center gap-3 py-3 font-bold text-xs uppercase tracking-tight focus:bg-amber-50 focus:text-amber-700 dark:focus:bg-amber-900/20">
                                                                     <div className="h-8 w-8 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center">

@@ -169,9 +169,9 @@ export const getOrderStats = async () => {
     const totalSnap = await getCountFromServer(ordersRef);
     const totalOrders = totalSnap.data().count;
 
-    const processingQuery = query(ordersRef, where("status", "==", "PROCESSING"));
-    const processingSnap = await getCountFromServer(processingQuery);
-    const processingOrders = processingSnap.data().count;
+    const assignedQuery = query(ordersRef, where("status", "==", "ASSIGNED"));
+    const assignedSnap = await getCountFromServer(assignedQuery);
+    const assignedOrders = assignedSnap.data().count;
 
     const deliveredQuery = query(ordersRef, where("status", "==", "DELIVERED"));
     const deliveredSnap = await getCountFromServer(deliveredQuery);
@@ -210,14 +210,14 @@ export const getOrderStats = async () => {
 
     return {
         totalOrders,
-        processingOrders,
+        assignedOrders,
         shippedOrders,
         deliveredOrders,
         grossRevenue
     };
   } catch (error) {
     console.error("Error fetching order stats:", error);
-    return { totalOrders: 0, processingOrders: 0, shippedOrders: 0, deliveredOrders: 0, grossRevenue: 0 };
+    return { totalOrders: 0, assignedOrders: 0, shippedOrders: 0, deliveredOrders: 0, grossRevenue: 0 };
   }
 };
 

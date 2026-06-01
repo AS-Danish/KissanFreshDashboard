@@ -434,42 +434,68 @@ exports.createOrder = require("firebase-functions/v2/https")
           console.error(`Error sending FCM notification for order ${result.id}:`, err);
         }
 
-        // 6b. Send FCM Notification to Admin Device (Non-blocking)
+        // 6b. Send FCM Notification to Admin Devices (Non-blocking)
         try {
-          const adminFcmSnap = await db.collection("admin_config").doc("fcm").get();
-          const adminFcmToken = adminFcmSnap.data()?.token;
+          const adminTokensSnap = await db.collection("admin_tokens").get();
+          if (!adminTokensSnap.empty) {
+            const tokens = [];
+            adminTokensSnap.forEach((doc) => {
+              const t = doc.data().token;
+              if (t) {
+                tokens.push(t);
+              }
+            });
 
-          if (adminFcmToken) {
-            const customerName = result.customerName || "Customer";
-            const adminMessage = {
-              notification: {
-                title: "New Order Arrived!",
-                body: `New Order Arrived from "${customerName}"`,
-              },
-              android: {
+            if (tokens.length > 0) {
+              const customerName = result.customerName || "Customer";
+              const multicastMessage = {
                 notification: {
-                  channelId: "high_importance_channel",
-                  sound: "loud_alert",
+                  title: "New Order Arrived!",
+                  body: `New Order Arrived from "${customerName}"`,
                 },
-              },
-              apns: {
-                payload: {
-                  aps: {
-                    sound: "loud_alert.caf",
+                android: {
+                  notification: {
+                    channelId: "high_importance_channel",
+                    sound: "loud_alert",
                   },
                 },
-              },
-              data: {
-                orderId: result.id,
-                type: "NEW_ORDER_ADMIN",
-              },
-              token: adminFcmToken,
-            };
+                apns: {
+                  payload: {
+                    aps: {
+                      sound: "loud_alert.caf",
+                    },
+                  },
+                },
+                data: {
+                  orderId: result.id,
+                  type: "NEW_ORDER_ADMIN",
+                },
+                tokens: tokens,
+              };
 
-            await admin.messaging().send(adminMessage);
-            console.log(`Admin FCM notification sent to single device.`);
+              const response = await admin.messaging().sendEachForMulticast(multicastMessage);
+              console.log(`Admin FCM notifications sent: success ${response.successCount}, failure ${response.failureCount}`);
+
+              // Clean up invalid or unregistered tokens from database
+              if (response.failureCount > 0) {
+                const batch = db.batch();
+                response.responses.forEach((resp, idx) => {
+                  if (!resp.success) {
+                    const error = resp.error;
+                    if (error && (error.code === "messaging/registration-token-not-registered" || 
+                                  error.code === "messaging/invalid-registration-token")) {
+                      const failedToken = tokens[idx];
+                      const tokenDocRef = db.collection("admin_tokens").doc(failedToken);
+                      batch.delete(tokenDocRef);
+                      console.log(`Cleaning up invalid admin token: ${failedToken}`);
+                    }
+                  }
+                });
+                await batch.commit();
+              }
+            }
           } else {
-            console.log("No admin FCM token found in admin_config/fcm.");
+            console.log("No admin FCM tokens found in admin_tokens collection.");
           }
         } catch (adminErr) {
           console.error("Error sending admin FCM notification:", adminErr);

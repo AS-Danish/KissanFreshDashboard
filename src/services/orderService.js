@@ -177,6 +177,12 @@ export const getOrderStats = async () => {
     const deliveredSnap = await getCountFromServer(deliveredQuery);
     const deliveredOrders = deliveredSnap.data().count;
 
+    const outForDeliveryQuery = query(ordersRef, where("status", "==", "OUT FOR DELIVERY"));
+    const outForDeliverySnap = await getCountFromServer(outForDeliveryQuery);
+    const shippedQuery = query(ordersRef, where("status", "==", "SHIPPED"));
+    const shippedSnap = await getCountFromServer(shippedQuery);
+    const shippedOrders = outForDeliverySnap.data().count + shippedSnap.data().count;
+
     let grossRevenue = 0;
     try {
         const revenueSnap = await getAggregateFromServer(ordersRef, {
@@ -191,7 +197,7 @@ export const getOrderStats = async () => {
                  total += Number(d.data().totalAmount) || 0;
              });
              grossRevenue = total;
-        }
+         }
     } catch (e) {
         console.warn("Aggregate sum failed:", e);
         const allDocs = await getDocs(ordersRef);
@@ -205,12 +211,13 @@ export const getOrderStats = async () => {
     return {
         totalOrders,
         processingOrders,
+        shippedOrders,
         deliveredOrders,
         grossRevenue
     };
   } catch (error) {
     console.error("Error fetching order stats:", error);
-    return { totalOrders: 0, processingOrders: 0, deliveredOrders: 0, grossRevenue: 0 };
+    return { totalOrders: 0, processingOrders: 0, shippedOrders: 0, deliveredOrders: 0, grossRevenue: 0 };
   }
 };
 

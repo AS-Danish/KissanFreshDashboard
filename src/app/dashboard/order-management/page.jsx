@@ -127,6 +127,7 @@ export default function OrderManagement() {
     const router = useRouter();
     const [ridersMap, setRidersMap] = useState({});
     const [usersMap, setUsersMap] = useState({});
+    const [copiedId, setCopiedId] = useState(null);
     
     // Pagination states
     const [cursorHistory, setCursorHistory] = useState([null]);
@@ -255,6 +256,10 @@ export default function OrderManagement() {
                 updatedAt: new Date().toISOString()
             })
             toast.success(`Order status: ${newStatus}`)
+            setOrders(prevOrders => prevOrders.map(order => 
+                order.id === orderId ? { ...order, status: newStatus } : order
+            ));
+            loadStats();
         } catch (error) {
             console.error("Error updating status:", error)
             toast.error("Process failed")

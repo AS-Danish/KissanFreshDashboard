@@ -1,4 +1,4 @@
-import { liteClient as algoliasearch } from 'algoliasearch/lite';
+import algoliasearch from 'algoliasearch/lite';
 
 const appId = process.env.NEXT_PUBLIC_ALGOLIA_APP_ID || '';
 const searchKey = process.env.NEXT_PUBLIC_ALGOLIA_SEARCH_KEY || '';
@@ -20,17 +20,13 @@ export const performSearch = async (indexName, query, options = {}) => {
   }
 
   try {
-    const { results } = await searchClient.search([{
-        indexName,
-        query,
-        ...options
-    }]);
+    const index = searchClient.initIndex(indexName);
+    const result = await index.search(query, options);
     
-    // results[0] contains the matching documents and pagination info
     return {
-        hits: results[0]?.hits || [],
-        nbPages: results[0]?.nbPages || 1,
-        nbHits: results[0]?.nbHits || 0
+        hits: result.hits || [],
+        nbPages: result.nbPages || 1,
+        nbHits: result.nbHits || 0
     };
   } catch (error) {
     console.error("Algolia search error:", error);

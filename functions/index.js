@@ -610,3 +610,68 @@ exports.onOrderStatusUpdate = require("firebase-functions/v2/firestore")
     }
     return null;
   });
+
+/**
+ * Sync Firestore Products to Algolia Index
+ */
+exports.syncProductToAlgolia = require("firebase-functions/v2/firestore")
+  .onDocumentWritten({
+    document: "products/{productId}",
+    secrets: ["ALGOLIA_APP_ID", "ALGOLIA_ADMIN_API_KEY"],
+  }, async (event) => {
+    const algoliasearch = require("algoliasearch");
+    
+    // Check if secrets are available in the environment
+    const appId = process.env.ALGOLIA_APP_ID;
+    const adminKey = process.env.ALGOLIA_ADMIN_API_KEY;
+    
+    if (!appId || !adminKey) {
+        console.error("Algolia credentials are not configured in Firebase Secrets.");
+        return null;
+    }
+
+    const client = algoliasearch(appId, adminKey);
+    const index = client.initIndex("products");
+    const productId = event.params.productId;
+
+    // Document was deleted
+    if (!event.data.after.exists) {
+        try {
+            await index.deleteObject(productId);
+            console.log(`Successfully deleted product ${productId} from Algolia`);
+        } catch (error) {
+            console.error(`Error deleting product ${productId} from Algolia`, error);
+        }
+        return null;
+    }
+
+    // Document was created or updated
+    const data = event.data.after.data();
+    
+    const algoliaObject = {
+        objectID: productId,
+        name: data.name,
+        description: data.description,
+        category: data.category,
+        price: data.price,
+        mrp: data.mrp,
+        discountPercentage: data.discountPercentage,
+        image: data.images && data.images.length > 0 ? data.images[0] : null,
+        productOrigin: data.productOrigin,
+        inStock: data.inStock,
+        tags: data.tags,
+        hasVariations: data.hasVariations,
+        unit: data.unit,
+        unitValue: data.unitValue
+    };
+
+    try {
+        await index.saveObject(algoliaObject);
+        console.log(`Successfully synced product ${productId} to Algolia`);
+    } catch (error) {
+        console.error(`Error syncing product ${productId} to Algolia`, error);
+    }
+    
+    return null;
+  });
+

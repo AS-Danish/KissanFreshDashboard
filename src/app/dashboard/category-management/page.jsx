@@ -28,7 +28,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { Skeleton } from "@/components/ui/skeleton"
 
 export default function CategoryManagementPage() {
-    const { categories, sections, loading } = useAppStore();
+    const { categories, sections, loading, refreshCategories } = useAppStore();
     
     // Form states
     const [newCategory, setNewCategory] = useState({ name: "", type: "home-food" });
@@ -45,6 +45,7 @@ export default function CategoryManagementPage() {
             await addCategory(newCategory.name.trim(), type);
             toast.success("Category added successfully");
             setNewCategory({ ...newCategory, name: "" });
+            refreshCategories();
         } catch (error) {
             toast.error("Failed to add category");
         }
@@ -54,6 +55,7 @@ export default function CategoryManagementPage() {
         try {
             await deleteCategory(id);
             toast.success("Success");
+            refreshCategories();
         } catch (error) {
             toast.error("Failed to delete category");
         }
@@ -63,6 +65,7 @@ export default function CategoryManagementPage() {
         try {
             await updateCategory(id, newName);
             toast.success("Success");
+            refreshCategories();
         } catch (error) {
             toast.error("Failed to update category");
         }
@@ -84,6 +87,7 @@ export default function CategoryManagementPage() {
             );
             toast.success("Section added successfully");
             setNewSection({ name: "", type: "home-food", selectedCategories: [], rank: "" });
+            refreshCategories();
         } catch (error) {
             toast.error("Failed to add section");
         }
@@ -93,6 +97,7 @@ export default function CategoryManagementPage() {
         try {
             await updateSectionRank(sectionId, Number(newRank), type);
             toast.success("Success");
+            refreshCategories();
         } catch (error) {
             toast.error("Failed to reorder sections");
         }
@@ -102,6 +107,7 @@ export default function CategoryManagementPage() {
         try {
             await deleteSection(id);
             toast.success("Success");
+            refreshCategories();
         } catch (error) {
             toast.error("Failed to delete section");
         }
@@ -111,6 +117,7 @@ export default function CategoryManagementPage() {
         try {
             await updateSection(id, data);
             toast.success("Success");
+            refreshCategories();
         } catch (error) {
             toast.error("Failed to update section");
         }
@@ -375,7 +382,7 @@ function SectionModule({ title, type, categories, sections, newSection, setNewSe
                 <div className="bg-muted/30 p-5 rounded-2xl border border-border/50 space-y-4">
                     <div className="grid grid-cols-4 gap-4">
                         <div className="col-span-3 space-y-2">
-                            <Label className="text-xs font-semibold">Section Name</Label>
+                            <Label className="text-xs font-semibold">Section Name <span className="text-red-500">*</span></Label>
                             <Input 
                                 placeholder="e.g. Best Sellers" 
                                 value={newSection.type === type ? newSection.name : ""}
@@ -397,7 +404,7 @@ function SectionModule({ title, type, categories, sections, newSection, setNewSe
                     
                     <div className="space-y-2">
                         <div className="flex items-center justify-between mb-1">
-                            <Label className="text-xs font-semibold">Select Categories ({newSection.type === type ? newSection.selectedCategories.length : 0})</Label>
+                            <Label className="text-xs font-semibold">Select Categories ({newSection.type === type ? newSection.selectedCategories.length : 0}) <span className="text-red-500">*</span></Label>
                             <div className="relative w-1/2">
                                 <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3 text-muted-foreground" />
                                 <Input 

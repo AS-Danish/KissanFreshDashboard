@@ -64,7 +64,8 @@ export default function ProductManagement() {
     const loadProducts = async (pageIndex, reset = false) => {
         setLoading(true);
         try {
-            if (searchQuery.trim() !== "") {
+            const isAlgoliaModeLocal = searchQuery.trim() !== "" || categoryFilter !== "all" || priceFilter !== "all" || tagFilter !== "all";
+            if (isAlgoliaModeLocal) {
                 const { performSearch } = await import("@/lib/algolia");
                 let numericFilters = [];
                 if (priceFilter === "under100") numericFilters.push("price < 100");
@@ -155,7 +156,7 @@ export default function ProductManagement() {
         }
     };
 
-    const isAlgoliaMode = searchQuery.trim() !== "";
+    const isAlgoliaMode = searchQuery.trim() !== "" || categoryFilter !== "all" || priceFilter !== "all" || tagFilter !== "all";
     const totalPages = isAlgoliaMode ? algoliaTotalPages : (hasMore ? currentPage + 1 : currentPage);
     const paginatedProducts = products;
 
@@ -268,9 +269,9 @@ export default function ProductManagement() {
                                         <TableRow key={product.id} className="group hover:bg-muted/50 transition-colors">
                                             <TableCell>
                                                 <div className="relative h-12 w-12 overflow-hidden rounded-lg border flex items-center justify-center bg-muted/30 shadow-inner group-hover:border-primary/30 transition-colors">
-                                                    {product.images && product.images.length > 0 ? (
+                                                    {(product.images && product.images.length > 0) || product.image ? (
                                                         <Image
-                                                            src={product.images[0]}
+                                                            src={(product.images && product.images.length > 0) ? product.images[0] : product.image}
                                                             alt={product.name}
                                                             fill
                                                             className="object-cover group-hover:scale-110 transition-transform duration-500"
@@ -296,10 +297,21 @@ export default function ProductManagement() {
                                                 </p>
                                             </TableCell>
                                             <TableCell className="font-bold text-foreground/80">
-                                                ₹{Number(product.price).toFixed(2)}
-                                                <span className="text-[10px] text-muted-foreground ml-1 font-normal uppercase italic">
-                                                    {product.unitValue && Number(product.unitValue) > 1 ? ` for ${product.unitValue}${product.unit}` : `/ ${product.unit || 'pc'}`}
-                                                </span>
+                                                {product.hasVariations && product.variations && product.variations.length > 0 ? (
+                                                    <>
+                                                        ₹{Math.min(...product.variations.map(v => v.price)).toFixed(2)} - ₹{Math.max(...product.variations.map(v => v.price)).toFixed(2)}
+                                                        <span className="text-[10px] text-muted-foreground ml-1 font-normal uppercase italic">
+                                                            ({product.variations.length} Sizes)
+                                                        </span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        ₹{Number(product.price).toFixed(2)}
+                                                        <span className="text-[10px] text-muted-foreground ml-1 font-normal uppercase italic">
+                                                            {product.unitValue && Number(product.unitValue) > 1 ? ` for ${product.unitValue}${product.unit}` : `/ ${product.unit || 'pc'}`}
+                                                        </span>
+                                                    </>
+                                                )}
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-1">

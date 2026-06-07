@@ -71,12 +71,13 @@ export const subscribeToCategories = (type, callback) => {
  * @param {string} name 
  * @param {string} type 'home-food' | 'kissan-fresh'
  */
-export const addCategory = async (name, type) => {
+export const addCategory = async (name, type, icon = null) => {
   try {
     const categoriesRef = collection(db, CATEGORIES_COLLECTION);
     const docRef = await addDoc(categoriesRef, {
       name,
       type,
+      icon,
       createdAt: serverTimestamp()
     });
     
@@ -119,15 +120,19 @@ export const deleteCategory = async (id) => {
  * @param {string} id 
  * @param {string} name 
  */
-export const updateCategory = async (id, name) => {
+export const updateCategory = async (id, name, icon = null) => {
   try {
     const docRef = doc(db, CATEGORIES_COLLECTION, id);
-    await updateDoc(docRef, { name });
+    const updateData = { name };
+    if (icon !== null) {
+      updateData.icon = icon;
+    }
+    await updateDoc(docRef, updateData);
     
     // Update catalog version for cache busting
     await updateCatalogVersion();
     
-    await logAdminAction("CATEGORY_UPDATED", "CATEGORY", id, { name });
+    await logAdminAction("CATEGORY_UPDATED", "CATEGORY", id, updateData);
 
     return { success: true };
   } catch (error) {

@@ -162,7 +162,9 @@ export default function AddNewProduct() {
                     mrp: parseFloat(v.mrp) || parseFloat(v.price),
                     discountPercentage: parseFloat(v.discountPercentage) || 0,
                     price: parseFloat(v.price),
-                    image: vImageUrl
+                    image: vImageUrl,
+                    stockCount: parseInt(v.stockCount) || 0,
+                    inStock: (parseInt(v.stockCount) || 0) > 0
                 });
             }
 
@@ -351,7 +353,7 @@ export default function AddNewProduct() {
                                                 type="button" 
                                                 variant="outline" 
                                                 size="sm"
-                                                onClick={() => setVariations([...variations, { id: Date.now(), unit: '', unitValue: '1', mrp: '', price: '', discountPercentage: '', image: null }])}
+                                                onClick={() => setVariations([...variations, { id: Date.now(), unit: '', unitValue: '1', mrp: '', price: '', discountPercentage: '', image: null, stockCount: 0 }])}
                                             >
                                                 Add Variation
                                             </Button>
@@ -456,6 +458,18 @@ export default function AddNewProduct() {
                                                             }
                                                             newVars[index].price = newPrice;
                                                             newVars[index].discountPercentage = newPct;
+                                                            setVariations(newVars);
+                                                        }} 
+                                                        className="h-9 text-sm" 
+                                                    />
+                                                </div>
+                                                <div className="md:col-span-2 space-y-2">
+                                                    <Label className="text-xs">Init Stock</Label>
+                                                    <Input 
+                                                        type="number" value={v.stockCount} 
+                                                        onChange={e => {
+                                                            const newVars = [...variations];
+                                                            newVars[index].stockCount = e.target.value;
                                                             setVariations(newVars);
                                                         }} 
                                                         className="h-9 text-sm" 

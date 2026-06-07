@@ -26,12 +26,47 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { useAppStore } from "@/store/useAppStore";
 import { Skeleton } from "@/components/ui/skeleton"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Apple, Carrot, Milk, Beef, Wheat, Coffee, ShoppingBag, Shirt, Smartphone, Home, Heart, Package, Utensils, Pizza, IceCream, Fish, Cake, Soup, Egg, Grid, Droplets, Flame, Cpu, Book, Dumbbell, Music, Plane, Car, Gift, Baby } from "lucide-react"
+
+const CATEGORY_ICONS = [
+  { name: 'Grid', icon: Grid },
+  { name: 'Apple', icon: Apple },
+  { name: 'Carrot', icon: Carrot },
+  { name: 'Milk', icon: Milk },
+  { name: 'Beef', icon: Beef },
+  { name: 'Wheat', icon: Wheat },
+  { name: 'Coffee', icon: Coffee },
+  { name: 'ShoppingBag', icon: ShoppingBag },
+  { name: 'Shirt', icon: Shirt },
+  { name: 'Smartphone', icon: Smartphone },
+  { name: 'Home', icon: Home },
+  { name: 'Heart', icon: Heart },
+  { name: 'Package', icon: Package },
+  { name: 'Utensils', icon: Utensils },
+  { name: 'Pizza', icon: Pizza },
+  { name: 'IceCream', icon: IceCream },
+  { name: 'Fish', icon: Fish },
+  { name: 'Cake', icon: Cake },
+  { name: 'Soup', icon: Soup },
+  { name: 'Egg', icon: Egg },
+  { name: 'Droplets', icon: Droplets },
+  { name: 'Flame', icon: Flame },
+  { name: 'Cpu', icon: Cpu },
+  { name: 'Book', icon: Book },
+  { name: 'Dumbbell', icon: Dumbbell },
+  { name: 'Music', icon: Music },
+  { name: 'Plane', icon: Plane },
+  { name: 'Car', icon: Car },
+  { name: 'Gift', icon: Gift },
+  { name: 'Baby', icon: Baby }
+];
 
 export default function CategoryManagementPage() {
     const { categories, sections, loading, refreshCategories } = useAppStore();
     
     // Form states
-    const [newCategory, setNewCategory] = useState({ name: "", type: "home-food" });
+    const [newCategory, setNewCategory] = useState({ name: "", type: "home-food", icon: "Grid" });
     const [newSection, setNewSection] = useState({ name: "", type: "home-food", selectedCategories: [], rank: "" });
     
     // Search states
@@ -42,9 +77,9 @@ export default function CategoryManagementPage() {
         if (!newCategory.name.trim()) return;
         
         try {
-            await addCategory(newCategory.name.trim(), type);
+            await addCategory(newCategory.name.trim(), type, newCategory.icon);
             toast.success("Category added successfully");
-            setNewCategory({ ...newCategory, name: "" });
+            setNewCategory({ ...newCategory, name: "", icon: "Grid" });
             refreshCategories();
         } catch (error) {
             toast.error("Failed to add category");
@@ -61,9 +96,9 @@ export default function CategoryManagementPage() {
         }
     };
 
-    const handleUpdateCategory = async (id, newName) => {
+    const handleUpdateCategory = async (id, newName, iconName) => {
         try {
-            await updateCategory(id, newName);
+            await updateCategory(id, newName, iconName);
             toast.success("Success");
             refreshCategories();
         } catch (error) {
@@ -171,7 +206,9 @@ export default function CategoryManagementPage() {
                                     type="home-food"
                                     list={categories["home-food"]}
                                     inputValue={newCategory.type === "home-food" ? newCategory.name : ""}
-                                    onInputChange={(val) => setNewCategory({ name: val, type: "home-food" })}
+                                    iconValue={newCategory.type === "home-food" ? newCategory.icon : "Grid"}
+                                    onInputChange={(val) => setNewCategory({ ...newCategory, name: val, type: "home-food" })}
+                                    onIconChange={(val) => setNewCategory({ ...newCategory, icon: val, type: "home-food" })}
                                     onAdd={() => handleAddCategory("home-food")}
                                     onDelete={handleDeleteCategory}
                                     onEdit={handleUpdateCategory}
@@ -187,7 +224,9 @@ export default function CategoryManagementPage() {
                                     type="kissan-fresh"
                                     list={categories["kissan-fresh"]}
                                     inputValue={newCategory.type === "kissan-fresh" ? newCategory.name : ""}
-                                    onInputChange={(val) => setNewCategory({ name: val, type: "kissan-fresh" })}
+                                    iconValue={newCategory.type === "kissan-fresh" ? newCategory.icon : "Grid"}
+                                    onInputChange={(val) => setNewCategory({ ...newCategory, name: val, type: "kissan-fresh" })}
+                                    onIconChange={(val) => setNewCategory({ ...newCategory, icon: val, type: "kissan-fresh" })}
                                     onAdd={() => handleAddCategory("kissan-fresh")}
                                     onDelete={handleDeleteCategory}
                                     onEdit={handleUpdateCategory}
@@ -240,14 +279,15 @@ export default function CategoryManagementPage() {
     )
 }
 
-function CategoryModule({ title, icon, list, inputValue, onInputChange, onAdd, onDelete, onEdit, loading, searchValue, onSearchChange }) {
+function CategoryModule({ title, icon, list, inputValue, iconValue, onInputChange, onIconChange, onAdd, onDelete, onEdit, loading, searchValue, onSearchChange }) {
     const [editingId, setEditingId] = useState(null);
     const [editValue, setEditValue] = useState("");
+    const [editIcon, setEditIcon] = useState("Grid");
 
     const handleSaveEdit = async (id) => {
         if (!editValue.trim()) return;
         if (onEdit) {
-            await onEdit(id, editValue.trim());
+            await onEdit(id, editValue.trim(), editIcon);
         }
         setEditingId(null);
     };
@@ -267,6 +307,20 @@ function CategoryModule({ title, icon, list, inputValue, onInputChange, onAdd, o
             </CardHeader>
             <CardContent className="space-y-6">
                 <div className="flex gap-2">
+                    <Select value={iconValue} onValueChange={onIconChange}>
+                        <SelectTrigger className="w-[80px] h-10 shrink-0 bg-background/50">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {CATEGORY_ICONS.map((IconItem) => (
+                                <SelectItem key={IconItem.name} value={IconItem.name}>
+                                    <div className="flex items-center gap-2">
+                                        <IconItem.icon className="size-4" />
+                                    </div>
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                     <Input 
                         placeholder="Add new category..." 
                         value={inputValue}
@@ -312,6 +366,20 @@ function CategoryModule({ title, icon, list, inputValue, onInputChange, onAdd, o
                                 <div key={cat.id} className="flex items-center justify-between p-3 px-4 hover:bg-muted/50 transition-colors group">
                                     {editingId === cat.id ? (
                                         <div className="flex items-center gap-2 flex-1 mr-2">
+                                            <Select value={editIcon} onValueChange={setEditIcon}>
+                                                <SelectTrigger className="w-[80px] h-8 shrink-0">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {CATEGORY_ICONS.map((IconItem) => (
+                                                        <SelectItem key={IconItem.name} value={IconItem.name}>
+                                                            <div className="flex items-center gap-2">
+                                                                <IconItem.icon className="size-4" />
+                                                            </div>
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
                                             <Input 
                                                 value={editValue} 
                                                 onChange={(e) => setEditValue(e.target.value)} 
@@ -331,12 +399,18 @@ function CategoryModule({ title, icon, list, inputValue, onInputChange, onAdd, o
                                         </div>
                                     ) : (
                                         <>
-                                            <span className="font-medium text-sm">{cat.name}</span>
+                                            <div className="flex items-center gap-3">
+                                                {(() => {
+                                                    const IconComponent = CATEGORY_ICONS.find(i => i.name === (cat.icon || 'Grid'))?.icon || Grid;
+                                                    return <IconComponent className="size-4 text-muted-foreground" />;
+                                                })()}
+                                                <span className="font-medium text-sm">{cat.name}</span>
+                                            </div>
                                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <Button 
                                                     variant="ghost" 
                                                     size="icon" 
-                                                    onClick={() => { setEditingId(cat.id); setEditValue(cat.name); }}
+                                                    onClick={() => { setEditingId(cat.id); setEditValue(cat.name); setEditIcon(cat.icon || "Grid"); }}
                                                     className="size-8 text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
                                                 >
                                                     <IconEdit className="size-4" />

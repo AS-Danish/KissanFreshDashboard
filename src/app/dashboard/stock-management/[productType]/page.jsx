@@ -95,9 +95,9 @@ export default function StockManagement() {
         return () => unsubscribe();
     }, [productType]);
 
-    const handleEditClick = (product) => {
-        setEditingProductId(product.id);
-        setEditStockValue(product.stockCount !== undefined ? product.stockCount.toString() : "0");
+    const handleEditClick = (productRow) => {
+        setEditingProductId(productRow.rowId);
+        setEditStockValue(productRow.stockCount !== undefined ? productRow.stockCount.toString() : "0");
     };
 
     const handleCancelEdit = () => {
@@ -105,7 +105,7 @@ export default function StockManagement() {
         setEditStockValue("");
     };
 
-    const handleSaveStock = async (productId) => {
+    const handleSaveStock = async (productRow) => {
         if (editStockValue === "" || isNaN(Number(editStockValue)) || Number(editStockValue) < 0) {
             alert("Please enter a valid stock count (0 or above).");
             return;
@@ -113,11 +113,29 @@ export default function StockManagement() {
 
         setUpdatingStock(true);
         try {
-            await updateDoc(doc(db, "products", productId), {
-                stockCount: Number(editStockValue),
-                inStock: Number(editStockValue) > 0, // optionally derive inStock flag here
-                updatedAt: new Date().toISOString()
-            });
+            if (productRow.isVariation) {
+                const product = products.find(p => p.id === productRow.id);
+                if (product) {
+                    const newVariations = [...product.variations];
+                    const vIndex = productRow.variationIndex;
+                    newVariations[vIndex].stockCount = Number(editStockValue);
+                    newVariations[vIndex].inStock = Number(editStockValue) > 0;
+                    
+                    const anyInStock = newVariations.some(v => v.inStock);
+
+                    await updateDoc(doc(db, "products", productRow.id), {
+                        variations: newVariations,
+                        inStock: anyInStock,
+                        updatedAt: new Date().toISOString()
+                    });
+                }
+            } else {
+                await updateDoc(doc(db, "products", productRow.id), {
+                    stockCount: Number(editStockValue),
+                    inStock: Number(editStockValue) > 0,
+                    updatedAt: new Date().toISOString()
+                });
+            }
             
             // Update catalog version for cache busting
             await updateCatalogVersion();
@@ -133,11 +151,36 @@ export default function StockManagement() {
 
 
     const filteredProducts = useMemo(() => {
-        return products.filter((product) => {
+        const result = products.filter((product) => {
             const matchesSearch = product.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
             const matchesCategory = categoryFilter === "all" || product.category?.toLowerCase() === categoryFilter.toLowerCase();
             return matchesSearch && matchesCategory;
         });
+
+        const flat = [];
+        for (const p of result) {
+            if (p.hasVariations && p.variations && p.variations.length > 0) {
+                p.variations.forEach((v, index) => {
+                    flat.push({
+                        ...p,
+                        isVariation: true,
+                        variationId: v.id,
+                        variationIndex: index,
+                        name: `${p.name} - ${v.unitValue} ${v.unit}`,
+                        price: v.price,
+                        stockCount: v.stockCount !== undefined ? v.stockCount : 0,
+                        rowId: `${p.id}_${v.id}`
+                    });
+                });
+            } else {
+                flat.push({
+                    ...p,
+                    isVariation: false,
+                    rowId: p.id
+                });
+            }
+        }
+        return flat;
     }, [products, debouncedSearchQuery, categoryFilter]);
 
     const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE) || 1;
@@ -224,18 +267,18 @@ export default function StockManagement() {
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    paginatedProducts.map((product) => {
-                                        const isEditing = editingProductId === product.id;
-                                        const stock = product.stockCount !== undefined ? product.stockCount : 0;
+                                    paginatedProducts.map((productRow) => {
+                                        const isEditing = editingProductId === productRow.rowId;
+                                        const stock = productRow.stockCount !== undefined ? productRow.stockCount : 0;
 
                                         return (
-                                            <TableRow key={product.id} className="group/row transition-colors hover:bg-muted/30">
+                                            <TableRow key={productRow.rowId} className={`group/row transition-colors hover:bg-muted/30 ${productRow.isVariation ? 'bg-muted/5' : ''}`}>
                                                 <TableCell>
                                                     <div className="relative h-12 w-12 overflow-hidden rounded-lg border flex items-center justify-center bg-muted/50">
-                                                        {product.images && product.images.length > 0 ? (
+                                                        {productRow.images && productRow.images.length > 0 ? (
                                                             <Image
-                                                                src={product.images[0]}
-                                                                alt={product.name}
+                                                                src={productRow.images[0]}
+                                                                alt={productRow.name}
                                                                 fill
                                                                 className="object-cover"
                                                             />
@@ -245,14 +288,16 @@ export default function StockManagement() {
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="font-medium text-foreground">
-                                                    {product.name}
+                                                    {productRow.name}
                                                 </TableCell>
-                                                <TableCell className="text-muted-foreground">{product.category}</TableCell>
+                                                <TableCell className="text-muted-foreground">{productRow.category}</TableCell>
                                                 <TableCell className="font-medium whitespace-nowrap">
-                                                    ₹{Number(product.price).toFixed(2)}
-                                                    <span className="text-[10px] text-muted-foreground ml-1 font-normal italic uppercase">
-                                                        {product.unitValue && Number(product.unitValue) > 1 ? ` for ${product.unitValue}${product.unit}` : ` / ${product.unit || 'pc'}`}
-                                                    </span>
+                                                    ₹{Number(productRow.price).toFixed(2)}
+                                                    {!productRow.isVariation && (
+                                                        <span className="text-[10px] text-muted-foreground ml-1 font-normal italic uppercase">
+                                                            {productRow.unitValue && Number(productRow.unitValue) > 1 ? ` for ${productRow.unitValue}${productRow.unit}` : ` / ${productRow.unit || 'pc'}`}
+                                                        </span>
+                                                    )}
                                                 </TableCell>
 
                                                 <TableCell className="text-center">
@@ -281,7 +326,7 @@ export default function StockManagement() {
                                                                 variant="ghost"
                                                                 size="icon"
                                                                 className="h-8 w-8 text-primary hover:bg-primary/20 hover:text-primary transition-colors rounded-full"
-                                                                onClick={() => handleSaveStock(product.id)}
+                                                                onClick={() => handleSaveStock(productRow)}
                                                                 disabled={updatingStock}
                                                                 title="Save"
                                                             >
@@ -305,7 +350,7 @@ export default function StockManagement() {
                                                             variant="ghost"
                                                             size="icon"
                                                             className="h-8 w-8 text-muted-foreground hover:text-primary opacity-0 group-hover/row:opacity-100 transition-all rounded-full"
-                                                            onClick={() => handleEditClick(product)}
+                                                            onClick={() => handleEditClick(productRow)}
                                                             title="Edit Stock"
                                                         >
                                                             <IconEdit className="h-4 w-4" />

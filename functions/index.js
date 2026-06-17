@@ -28,90 +28,124 @@ function getDistance(lat1, lon1, lat2, lon2) {
 }
 
 
+async function generateSlotsCore(db, admin) {
+  try {
+    const configSnap = await db.collection("config").doc("slots").get();
+    let activeHours = [];
+    if (configSnap.exists && configSnap.data().activeHours && configSnap.data().activeHours.length > 0) {
+      activeHours = configSnap.data().activeHours;
+    } else {
+      activeHours = Array.from({length: 16}, (_, i) => i + 6); // 6 to 21
+    }
+    activeHours.sort((a, b) => a - b);
+
+    const ridersQuery = db.collection("riders")
+      .where("status", "==", "ACTIVE");
+    const ridersSnap = await ridersQuery.get();
+    const activeRiders = ridersSnap.docs.map((doc) => {
+      return { id: doc.id, ...doc.data() };
+    });
+
+    const capacityPerSlot = activeRiders.length * 6;
+    let batch = db.batch();
+    let writeCount = 0;
+
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+
+    let slotsCreated = 0;
+
+    for (let dayOffset = 0; dayOffset <= 1; dayOffset++) {
+      const targetDate = new Date();
+      const dayMs = dayOffset * 24 * 60 * 60 * 1000;
+      targetDate.setTime(targetDate.getTime() + dayMs);
+      const dateString = formatter.format(targetDate);
+
+      console.log(`Generating slots for date: ${dateString}`);
+
+      for (const hour of activeHours) {
+        const hourString = hour.toString().padStart(2, "0");
+        const slotId = `${dateString}_${hourString}`;
+
+        const slotRef = db.collection("slots").doc(slotId);
+        const slotSnap = await slotRef.get();
+        if (slotSnap.exists) {
+          continue; // Skip if already created
+        }
+
+        const slotStartStr = `${dateString}T${hourString}:00:00+05:30`;
+        const nextHourStr = (hour + 1).toString().padStart(2, "0");
+        const slotEndStr = `${dateString}T${nextHourStr}:00:00+05:30`;
+
+        const slotStart = new Date(slotStartStr);
+        const slotEnd = new Date(slotEndStr);
+
+        batch.set(slotRef, {
+          startTime: admin.firestore.Timestamp.fromDate(slotStart),
+          endTime: admin.firestore.Timestamp.fromDate(slotEnd),
+          isActive: true,
+          isLocked: false,
+          capacity: capacityPerSlot,
+          assignedOrders: 0,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+        writeCount++;
+
+        for (const rider of activeRiders) {
+          const riderSlotRef = slotRef.collection("riders").doc(rider.id);
+          batch.set(riderSlotRef, {
+            riderId: rider.riderId || rider.id,
+            maxOrders: 6,
+            assignedOrders: 0,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          }, { merge: true });
+          writeCount++;
+        }
+        
+        slotsCreated++;
+
+        if (writeCount > 400) {
+          await batch.commit();
+          batch = db.batch();
+          writeCount = 0;
+        }
+      }
+    }
+
+    if (writeCount > 0) {
+      await batch.commit();
+    }
+    
+    console.log(`Successfully generated ${slotsCreated} slots.`);
+    return { success: true, count: slotsCreated };
+  } catch (error) {
+    console.error("Error generating daily slots:", error);
+    throw error;
+  }
+}
+
 exports.generateDailySlots = require("firebase-functions/v2/scheduler")
   .onSchedule({
     schedule: "0 0 * * *",
     timeZone: "Asia/Kolkata",
     retryCount: 3,
   }, async (event) => {
+    await generateSlotsCore(db, admin);
+  });
+
+exports.manualGenerateSlots = require("firebase-functions/v2/https")
+  .onCall(async (request) => {
+    // Optional: check request.auth for admin permissions here
     try {
-      const ridersQuery = db.collection("riders")
-        .where("status", "==", "ACTIVE");
-      const ridersSnap = await ridersQuery.get();
-      const activeRiders = ridersSnap.docs.map((doc) => {
-        return { id: doc.id, ...doc.data() };
-      });
-
-      const capacityPerSlot = activeRiders.length * 6;
-      const batch = db.batch();
-
-      const startHour = 6;
-      const endHour = 22;
-
-      const formatter = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Asia/Kolkata",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      });
-
-      for (let dayOffset = 0; dayOffset <= 1; dayOffset++) {
-        const targetDate = new Date();
-        const dayMs = dayOffset * 24 * 60 * 60 * 1000;
-        targetDate.setTime(targetDate.getTime() + dayMs);
-        const dateString = formatter.format(targetDate);
-
-        // Check if slots for this date exist (e.g., from today's slot)
-        const firstSlotId =
-          `${dateString}_${startHour.toString().padStart(2, "0")}`;
-        const firstSlotSnap =
-          await db.collection("slots").doc(firstSlotId).get();
-        if (firstSlotSnap.exists) {
-          console.log(`Slots for ${dateString} already exist. Skipping.`);
-          continue;
-        }
-
-        console.log(`Generating slots for date: ${dateString}`);
-
-        for (let hour = startHour; hour < endHour; hour++) {
-          const hourString = hour.toString().padStart(2, "0");
-          const slotId = `${dateString}_${hourString}`;
-
-          const slotRef = db.collection("slots").doc(slotId);
-
-          const slotStartStr = `${dateString}T${hourString}:00:00+05:30`;
-          const nextHourStr = (hour + 1).toString().padStart(2, "0");
-          const slotEndStr = `${dateString}T${nextHourStr}:00:00+05:30`;
-
-          const slotStart = new Date(slotStartStr);
-          const slotEnd = new Date(slotEndStr);
-
-          batch.set(slotRef, {
-            startTime: admin.firestore.Timestamp.fromDate(slotStart),
-            endTime: admin.firestore.Timestamp.fromDate(slotEnd),
-            isActive: true,
-            isLocked: false,
-            capacity: capacityPerSlot,
-            assignedOrders: 0,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          }, { merge: true });
-
-          for (const rider of activeRiders) {
-            const riderSlotRef = slotRef.collection("riders").doc(rider.id);
-            batch.set(riderSlotRef, {
-              riderId: rider.riderId || rider.id,
-              maxOrders: 6,
-              assignedOrders: 0,
-              createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            }, { merge: true });
-          }
-        }
-      }
-
-      await batch.commit();
-      console.log("Successfully generated slots.");
+      const result = await generateSlotsCore(db, admin);
+      return result;
     } catch (error) {
-      console.error("Error generating daily slots:", error);
+      const { HttpsError } = require("firebase-functions/v2/https");
+      throw new HttpsError("internal", error.message);
     }
   });
 
@@ -554,8 +588,6 @@ exports.createOrder = require("firebase-functions/v2/https")
         } catch (dashboardErr) {
           console.error("Error sending dashboard FCM notification:", dashboardErr);
         }
-
-
 
         // 7. Send Telegram Notification to Admin (Non-blocking)
         try {

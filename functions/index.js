@@ -501,6 +501,62 @@ exports.createOrder = require("firebase-functions/v2/https")
           console.error("Error sending admin FCM notification:", adminErr);
         }
 
+        // 6c. Send FCM Notification to Dashboard Devices (Non-blocking)
+        try {
+          const dashboardTokensSnap = await db.collection("dashboard_tokens").get();
+          if (!dashboardTokensSnap.empty) {
+            const tokens = [];
+            dashboardTokensSnap.forEach((doc) => {
+              const t = doc.data().token;
+              if (t) {
+                tokens.push(t);
+              }
+            });
+
+            if (tokens.length > 0) {
+              const customerName = result.customerName || "Customer";
+              const multicastMessage = {
+                notification: {
+                  title: "New Order Arrived!",
+                  body: `New Order Arrived from "${customerName}"`,
+                },
+                data: {
+                  orderId: result.id,
+                  type: "NEW_ORDER_DASHBOARD",
+                },
+                tokens: tokens,
+              };
+
+              const response = await admin.messaging().sendEachForMulticast(multicastMessage);
+              console.log(`Dashboard FCM notifications sent: success ${response.successCount}, failure ${response.failureCount}`);
+
+              // Clean up invalid or unregistered tokens from database
+              if (response.failureCount > 0) {
+                const batch = db.batch();
+                response.responses.forEach((resp, idx) => {
+                  if (!resp.success) {
+                    const error = resp.error;
+                    if (error && (error.code === "messaging/registration-token-not-registered" || 
+                                  error.code === "messaging/invalid-registration-token")) {
+                      const failedToken = tokens[idx];
+                      const tokenDocRef = db.collection("dashboard_tokens").doc(failedToken);
+                      batch.delete(tokenDocRef);
+                      console.log(`Cleaning up invalid dashboard token: ${failedToken}`);
+                    }
+                  }
+                });
+                await batch.commit();
+              }
+            }
+          } else {
+            console.log("No dashboard FCM tokens found in dashboard_tokens collection.");
+          }
+        } catch (dashboardErr) {
+          console.error("Error sending dashboard FCM notification:", dashboardErr);
+        }
+
+
+
         // 7. Send Telegram Notification to Admin (Non-blocking)
         try {
           const botToken = process.env.TELEGRAM_BOT_TOKEN;

@@ -427,7 +427,6 @@ export default function RiderManagement() {
                                         <TableHead className="font-semibold text-foreground px-6 py-4">Rider Identity</TableHead>
                                         <TableHead className="font-semibold text-foreground">Contact</TableHead>
                                         <TableHead className="font-semibold text-foreground">Vehicle Number</TableHead>
-                                        <TableHead className="font-semibold text-foreground">Deliveries</TableHead>
                                         <TableHead className="font-semibold text-foreground text-center">Status</TableHead>
                                         <TableHead className="text-right font-semibold text-foreground px-6">Actions</TableHead>
                                     </TableRow>
@@ -447,14 +446,13 @@ export default function RiderManagement() {
                                                 </TableCell>
                                                 <TableCell><Skeleton className="h-5 w-32" /></TableCell>
                                                 <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                                                <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                                                 <TableCell><Skeleton className="h-8 w-24 mx-auto" /></TableCell>
                                                 <TableCell className="text-right px-6"><Skeleton className="h-9 w-9 ml-auto rounded-xl" /></TableCell>
                                             </TableRow>
                                         ))
                                     ) : paginatedRiders.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={6} className="text-center py-32">
+                                            <TableCell colSpan={5} className="text-center py-32">
                                                 <div className="flex flex-col items-center gap-6">
                                                     <div className="h-24 w-24 bg-muted/50 rounded-[2rem] flex items-center justify-center border-2 border-dashed border-border">
                                                         <IconSearch className="h-10 w-10 text-muted-foreground/30" />
@@ -508,11 +506,7 @@ export default function RiderManagement() {
                                                         </div>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell>
-                                                    <div className="flex flex-col gap-1">
-                                                        <span className="font-bold text-xs text-primary">{rider.totalDeliveries || 0} Deliveries</span>
-                                                    </div>
-                                                </TableCell>
+
                                                 <TableCell className="text-center">
                                                     <Badge variant="outline" className={`${getStatusColor(rider.status)} px-3 py-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider justify-center w-[130px] mx-auto`}>
                                                         {getStatusIcon(rider.status)}

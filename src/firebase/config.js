@@ -2,6 +2,7 @@ import { getApp, getApps, initializeApp } from "firebase/app";
 import { getAuth, setPersistence, browserLocalPersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+import { getFunctions } from "firebase/functions";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -21,6 +22,7 @@ setPersistence(auth, browserLocalPersistence);
 
 const db = getFirestore(app);
 const storage = getStorage(app);
+const functions = getFunctions(app);
 
 let messaging = null;
 if (typeof window !== "undefined") {
@@ -31,4 +33,4 @@ if (typeof window !== "undefined") {
   });
 }
 
-export { app, auth, db, storage, messaging };
+export { app, auth, db, storage, messaging, functions };

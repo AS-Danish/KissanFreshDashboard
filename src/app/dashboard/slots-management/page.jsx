@@ -2,7 +2,9 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { db } from "@/firebase/config"
-import { collection, onSnapshot, query, orderBy, getDocs } from "firebase/firestore"
+import { collection, onSnapshot, query, orderBy, getDocs, doc, setDoc, getDoc } from "firebase/firestore"
+import { functions } from "@/firebase/config"
+import { httpsCallable } from "firebase/functions"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import {
@@ -43,7 +45,9 @@ import {
     IconCheck,
     IconX,
     IconPlus,
-    IconTrash
+    IconTrash,
+    IconSettings,
+    IconBolt
 } from "@tabler/icons-react"
 import { toast } from "sonner"
 import { 
@@ -79,6 +83,12 @@ export default function SlotsManagement() {
     // Track ID of rider currently being assigned/removed for loading state
     const [processingRiderId, setProcessingRiderId] = useState(null);
 
+    // Slot Config state
+    const [isConfigOpen, setIsConfigOpen] = useState(false);
+    const [activeHours, setActiveHours] = useState([]);
+    const [isSavingConfig, setIsSavingConfig] = useState(false);
+    const [isGenerating, setIsGenerating] = useState(false);
+
     // Fetch Slots
     useEffect(() => {
         const slotsRef = collection(db, "slots");
@@ -113,6 +123,23 @@ export default function SlotsManagement() {
             }
         }
         fetchAllRiders();
+    }, []);
+
+    // Fetch Config
+    useEffect(() => {
+        const fetchConfig = async () => {
+            try {
+                const configSnap = await getDoc(doc(db, "config", "slots"));
+                if (configSnap.exists() && configSnap.data().activeHours) {
+                    setActiveHours(configSnap.data().activeHours);
+                } else {
+                    setActiveHours(Array.from({length: 16}, (_, i) => i + 6));
+                }
+            } catch (err) {
+                console.error("Failed to fetch slots config", err);
+            }
+        };
+        fetchConfig();
     }, []);
 
     const filteredSlots = useMemo(() => {
@@ -235,6 +262,33 @@ export default function SlotsManagement() {
         }
     };
 
+    const handleSaveConfig = async () => {
+        setIsSavingConfig(true);
+        try {
+            await setDoc(doc(db, "config", "slots"), { activeHours });
+            toast.success("Slot configuration saved successfully.");
+            setIsConfigOpen(false);
+        } catch (error) {
+            toast.error("Failed to save configuration.");
+        } finally {
+            setIsSavingConfig(false);
+        }
+    };
+
+    const handleManualGenerate = async () => {
+        setIsGenerating(true);
+        try {
+            const manualGenerateSlots = httpsCallable(functions, 'manualGenerateSlots');
+            const result = await manualGenerateSlots();
+            toast.success(`Successfully generated ${result.data.count} slots.`);
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to generate slots.");
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
 
     const formatTime = (timestamp) => {
         if (!timestamp) return "";
@@ -256,6 +310,15 @@ export default function SlotsManagement() {
                         <h2 className="text-2xl font-bold tracking-tight text-foreground uppercase">
                             Slot Management
                         </h2>
+                        <div className="flex gap-2">
+                            <Button variant="outline" onClick={() => setIsConfigOpen(true)}>
+                                <IconSettings className="w-4 h-4 mr-2" /> Configure Hours
+                            </Button>
+                            <Button onClick={handleManualGenerate} disabled={isGenerating}>
+                                {isGenerating ? <IconRefresh className="w-4 h-4 mr-2 animate-spin" /> : <IconBolt className="w-4 h-4 mr-2" />}
+                                Generate Now
+                            </Button>
+                        </div>
                     </div>
 
                     {/* Stats Overview */}
@@ -580,6 +643,45 @@ export default function SlotsManagement() {
                                     <Button onClick={() => setIsManageRidersOpen(false)} variant="outline">Done</Button>
                                 </div>
                             </div>
+                        </DialogContent>
+                    </Dialog>
+
+                    {/* Configure Slot Hours Dialog */}
+                    <Dialog open={isConfigOpen} onOpenChange={setIsConfigOpen}>
+                        <DialogContent className="sm:max-w-[500px]">
+                            <DialogHeader>
+                                <DialogTitle>Configure Slot Hours</DialogTitle>
+                                <DialogDescription>
+                                    Select the hours for which slots should be generated automatically.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="grid grid-cols-4 gap-3 py-4">
+                                {Array.from({length: 24}, (_, i) => i).map((hour) => (
+                                    <div key={hour} className="flex flex-col items-center gap-2">
+                                        <Label htmlFor={`hour-${hour}`} className="text-xs font-mono">
+                                            {hour.toString().padStart(2, "0")}:00
+                                        </Label>
+                                        <Switch 
+                                            id={`hour-${hour}`}
+                                            checked={activeHours.includes(hour)}
+                                            onCheckedChange={(checked) => {
+                                                if (checked) {
+                                                    setActiveHours(prev => [...prev, hour].sort((a,b) => a - b));
+                                                } else {
+                                                    setActiveHours(prev => prev.filter(h => h !== hour));
+                                                }
+                                            }}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                            <DialogFooter>
+                                <Button variant="outline" onClick={() => setIsConfigOpen(false)}>Cancel</Button>
+                                <Button onClick={handleSaveConfig} disabled={isSavingConfig}>
+                                    {isSavingConfig ? <IconRefresh className="w-4 h-4 mr-2 animate-spin" /> : <IconCheck className="w-4 h-4 mr-2" />}
+                                    Save Configuration
+                                </Button>
+                            </DialogFooter>
                         </DialogContent>
                     </Dialog>
 

@@ -3,8 +3,8 @@ import Link from "next/link";
 import { IconArrowLeft } from "@tabler/icons-react";
 
 export const metadata = {
-  title: "Privacy Policy for KFTEST",
-  description: "Privacy Policy for KFTEST mobile application and related services.",
+  title: "Privacy Policy for Kissan Fresh",
+  description: "Privacy Policy for Kissan Fresh mobile application and related services.",
 };
 
 export default function PrivacyPolicy() {
@@ -23,7 +23,7 @@ export default function PrivacyPolicy() {
         
         <header className="mb-12">
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4 text-zinc-950 dark:text-white">
-            Privacy Policy for KFTEST
+            Privacy Policy for Kissan Fresh
           </h1>
           <p className="text-zinc-500 dark:text-zinc-400">
             Last Updated: {lastUpdated}
@@ -34,7 +34,7 @@ export default function PrivacyPolicy() {
           <section>
             <h2 className="text-2xl font-semibold mb-4 text-zinc-900 dark:text-zinc-100">1. Introduction</h2>
             <p className="leading-relaxed">
-              This Privacy Policy applies to KFTEST (package name: com.kissanfresh.app), operated by Abdul Salaam Danish under the Kissan Fresh brand. This policy explains how we collect, use, disclose, and protect your information when you use our mobile application and related services.
+              This Privacy Policy applies to Kissan Fresh (package name: com.kissanfresh.app), operated by Abdul Salaam Danish under the Kissan Fresh brand. This policy explains how we collect, use, disclose, and protect your information when you use our mobile application and related services.
             </p>
           </section>
 

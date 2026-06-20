@@ -1,5 +1,7 @@
 import React from "react";
 import Link from "next/link";
+import { LandingNav } from "@/components/landing/landing-nav";
+import { LandingFooter } from "@/components/landing/landing-footer";
 import { 
   IconArrowLeft, 
   IconUserCircle, 
@@ -17,19 +19,10 @@ export const metadata = {
 
 export default function DeleteAccountPage() {
   return (
-    <div className="min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans selection:bg-red-100 dark:selection:bg-red-900/30">
-      {/* Header */}
-      <nav className="border-b border-zinc-100 dark:border-zinc-900 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto px-6 h-20 flex items-center justify-between">
-          <Link href="/" className="inline-flex items-center gap-2 text-zinc-500 hover:text-green-600 transition-colors group">
-            <IconArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-            <span className="font-medium">Back to Home</span>
-          </Link>
-          <div className="text-zinc-400 font-bold tracking-tight">Kissan Fresh</div>
-        </div>
-      </nav>
+    <div className="min-h-screen flex flex-col bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans selection:bg-red-100 dark:selection:bg-red-900/30">
+      <LandingNav />
 
-      <main className="max-w-3xl mx-auto px-6 py-16 md:py-24">
+      <main className="flex-grow max-w-3xl mx-auto px-6 py-16 md:py-24 w-full">
         <header className="mb-16 text-center">
           <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-2xl flex items-center justify-center text-red-600 mx-auto mb-6">
             <IconTrash size={32} />
@@ -108,11 +101,8 @@ export default function DeleteAccountPage() {
           </div>
         </div>
 
-        <footer className="mt-24 text-center">
-            <p className="text-sm text-zinc-400 mb-4">Still have questions? Contact us at</p>
-            <p className="font-bold text-green-600 hover:underline cursor-pointer">support@kissanfresh.com</p>
-        </footer>
       </main>
+      <LandingFooter />
     </div>
   );
 }

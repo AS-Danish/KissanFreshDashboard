@@ -307,40 +307,72 @@ exports.createOrder = require("firebase-functions/v2/https")
           const userSnap = await transaction.get(userRef);
           const customerName = userSnap.exists ? (userSnap.data()?.name || userSnap.data()?.displayName || "Guest") : "Guest";
 
-          const productRefs = orderData.items.map((item) =>
-            db.collection("products").doc(item.productId));
+          const uniqueProductIds = [...new Set(orderData.items.map((item) => item.productId))];
+          const productRefs = uniqueProductIds.map((id) => db.collection("products").doc(id));
           const productSnaps = await transaction.getAll(...productRefs);
-          const stockUpdates = [];
+          
+          const productDataMap = {};
+          const productRefMap = {};
 
-          for (let i = 0; i < productSnaps.length; i++) {
-            const snap = productSnaps[i];
-            const item = orderData.items[i];
-
+          for (const snap of productSnaps) {
             if (!snap.exists) {
-              throw new HttpsError("failed-precondition",
-                `Product ${item.title} no longer available.`,
-                { reason: "product_unavailable" });
+              throw new HttpsError("failed-precondition", "A product in your order is no longer available.", {reason: "product_unavailable"});
             }
+            productDataMap[snap.id] = snap.data();
+            productRefMap[snap.id] = snap.ref;
+          }
 
+          for (const item of orderData.items) {
+            const data = productDataMap[item.productId];
             const quantity = parseInt(item.quantity, 10);
             if (isNaN(quantity) || quantity < 1) {
-              throw new HttpsError("invalid-argument",
-                `Invalid quantity for ${item.title}.`,
-                { reason: "invalid_quantity" });
+              throw new HttpsError("invalid-argument", `Invalid quantity for ${item.title}.`, { reason: "invalid_quantity" });
             }
 
-            const currentStock = parseInt(snap.data().stockCount, 10) || 0;
-            if (currentStock < quantity) {
-              throw new HttpsError("failed-precondition",
-                `Insufficient stock for ${item.title}. ` +
-                `Available: ${currentStock}`,
-                { reason: "insufficient_stock" });
-            }
+            if (data.hasVariations && data.variations && data.variations.length > 0) {
+              let varIndex = -1;
+              if (item.variationId) {
+                varIndex = data.variations.findIndex((v) => {
+                  const vId = v.id ? v.id.toString() : null;
+                  if (vId !== null && vId === item.variationId) return true;
+                  const altId = `${v.unitValue || ""}${v.unit || ""}`;
+                  if (altId === item.variationId) return true;
+                  if (vId === null && item.variationId === "null") return true;
+                  return false;
+                });
+              }
+              
+              if (varIndex === -1) {
+                varIndex = 0;
+              }
 
-            stockUpdates.push({
-              ref: snap.ref,
-              incrementAmount: -quantity,
-            });
+              const variation = data.variations[varIndex];
+              const currentStock = parseInt(variation.stockCount, 10) || 0;
+
+              if (currentStock < quantity) {
+                throw new HttpsError("failed-precondition",
+                    `Insufficient stock for ${item.title} (${item.unit}). Available: ${currentStock}`,
+                    {reason: "insufficient_stock"});
+              }
+
+              data.variations[varIndex].stockCount = currentStock - quantity;
+              if (data.variations[varIndex].stockCount <= 0) {
+                data.variations[varIndex].inStock = false;
+              }
+            } else {
+              const currentStock = parseInt(data.stockCount, 10) || 0;
+              
+              if (currentStock < quantity) {
+                throw new HttpsError("failed-precondition",
+                    `Insufficient stock for ${item.title}. Available: ${currentStock}`,
+                    {reason: "insufficient_stock"});
+              }
+
+              data.stockCount = currentStock - quantity;
+              if (data.stockCount <= 0) {
+                data.inStock = false;
+              }
+            }
           }
 
           const slotRef = db.collection("slots").doc(selectedSlotId);
@@ -405,8 +437,8 @@ exports.createOrder = require("firebase-functions/v2/https")
             // Note: Realistically we should loop until unique, but collision is extremely rare.
           }
 
-          for (const update of stockUpdates) {
-            transaction.update(update.ref, { stockCount: admin.firestore.FieldValue.increment(update.incrementAmount) });
+          for (const id of uniqueProductIds) {
+            transaction.update(productRefMap[id], productDataMap[id]);
           }
 
           const newSlotAssignedOrders =
@@ -589,32 +621,6 @@ exports.createOrder = require("firebase-functions/v2/https")
           console.error("Error sending dashboard FCM notification:", dashboardErr);
         }
 
-        // 7. Send Telegram Notification to Admin (Non-blocking)
-        try {
-          const botToken = process.env.TELEGRAM_BOT_TOKEN;
-          const chatId = process.env.TELEGRAM_CHAT_ID;
-
-          if (botToken && chatId) {
-            const text = `🛒 <b>New Order Received!</b>\n\n<b>Order ID:</b> ${result.id}\n<b>Slot:</b> ${result.slotId}\n<b>Rider ID:</b> ${result.riderId}\n<b>Status:</b> Confirmed`;
-
-            const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                chat_id: chatId,
-                text: text,
-                parse_mode: "HTML",
-              }),
-            });
-
-            if (!response.ok) {
-              const errorData = await response.json();
-              console.error(`Telegram API Error [${result.id}]:`, JSON.stringify(errorData));
-            }
-          }
-        } catch (err) {
-          console.error(`Telegram Notification Failed [${result.id}]:`, err.message || err);
-        }
 
           return {
             success: true,

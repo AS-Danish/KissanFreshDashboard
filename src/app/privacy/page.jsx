@@ -1,6 +1,7 @@
 import React from "react";
 import Link from "next/link";
-import { IconArrowLeft } from "@tabler/icons-react";
+import { LandingNav } from "@/components/landing/landing-nav";
+import { LandingFooter } from "@/components/landing/landing-footer";
 
 export const metadata = {
   title: "Privacy Policy for Kissan Fresh",
@@ -11,15 +12,9 @@ export default function PrivacyPolicy() {
   const lastUpdated = "March 27, 2026";
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans selection:bg-green-100 dark:selection:bg-green-900/30">
-      <div className="max-w-4xl mx-auto px-6 py-12 md:py-20">
-        <Link 
-          href="/" 
-          className="inline-flex items-center gap-2 text-zinc-500 hover:text-green-600 transition-colors mb-8 group"
-        >
-          <IconArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-          Back to Home
-        </Link>
+    <div className="min-h-screen flex flex-col bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans selection:bg-green-100 dark:selection:bg-green-900/30">
+      <LandingNav />
+      <main className="flex-grow max-w-4xl mx-auto px-6 py-12 md:py-20 w-full">
         
         <header className="mb-12">
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4 text-zinc-950 dark:text-white">
@@ -135,10 +130,8 @@ export default function PrivacyPolicy() {
           </section>
         </div>
         
-        <footer className="mt-20 text-center text-zinc-400 text-sm">
-          &copy; {new Date().getFullYear()} Kissan Fresh. All rights reserved.
-        </footer>
-      </div>
+      </main>
+      <LandingFooter />
     </div>
   );
 }

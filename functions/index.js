@@ -484,6 +484,19 @@ exports.createOrder = require("firebase-functions/v2/https")
                 body: `Your order #${result.id} has been confirmed. ` +
                   `Thank you for shopping with Kissan Fresh!`,
               },
+              android: {
+                notification: {
+                  channelId: "high_importance_channel",
+                  sound: "loud_alert",
+                },
+              },
+              apns: {
+                payload: {
+                  aps: {
+                    sound: "loud_alert.caf",
+                  },
+                },
+              },
               data: {
                 orderId: result.id,
                 type: "ORDER_PLACED",
@@ -688,6 +701,19 @@ exports.onOrderStatusUpdate = require("firebase-functions/v2/firestore")
         notification: {
           title: "Order Update",
           body: body,
+        },
+        android: {
+          notification: {
+            channelId: "high_importance_channel",
+            sound: "loud_alert",
+          },
+        },
+        apns: {
+          payload: {
+            aps: {
+              sound: "loud_alert.caf",
+            },
+          },
         },
         data: {
           orderId: orderId,

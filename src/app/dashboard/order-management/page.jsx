@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import { db } from "@/firebase/config"
-import { collection, onSnapshot, query, orderBy, doc, updateDoc } from "firebase/firestore"
+import { collection, onSnapshot, query, orderBy, doc, updateDoc, limit, where } from "firebase/firestore"
 import { AppSidebar } from "@/components/app-sidebar"
 import { algoliaIndex } from "@/lib/algolia"
 import { logAdminAction } from "@/services/loggerService"
@@ -136,6 +136,18 @@ export default function OrderManagement() {
     const [hasMore, setHasMore] = useState(true);
     const [algoliaTotalPages, setAlgoliaTotalPages] = useState(1);
     const [algoliaTotalHits, setAlgoliaTotalHits] = useState(0);
+    const unsubscribeRef = useRef(null);
+    
+    const cleanupListener = () => {
+        if (unsubscribeRef.current) {
+            unsubscribeRef.current();
+            unsubscribeRef.current = null;
+        }
+    };
+
+    useEffect(() => {
+        return cleanupListener;
+    }, []);
 
     const loadStats = async () => {
         const { getOrderStats } = await import("@/services/orderService");
@@ -180,6 +192,7 @@ export default function OrderManagement() {
         setLoading(true);
         try {
             if (searchQuery.trim() !== "") {
+                cleanupListener(); // Stop realtime listener if searching
                 const { performSearch } = await import("@/lib/algolia");
                 
                 let facetFilters = [];
@@ -199,29 +212,55 @@ export default function OrderManagement() {
                 setAlgoliaTotalHits(nbHits);
                 setHasMore(pageIndex < nbPages);
                 await fetchRelatedData(mappedOrders);
+                setLoading(false);
             } else {
-                const { getPaginatedOrders } = await import("@/services/orderService");
-                const currentCursor = reset ? null : cursorHistory[pageIndex - 1];
-                
-                const { orders: fetchedOrders, lastVisible, hasMore: more } = await getPaginatedOrders(
-                    ITEMS_PER_PAGE, 
-                    currentCursor, 
-                    statusFilter
-                );
-                
-                setOrders(fetchedOrders);
-                setHasMore(more);
-                await fetchRelatedData(fetchedOrders);
-                
-                if (reset) {
-                    setCursorHistory([null, lastVisible]);
-                } else if (pageIndex === cursorHistory.length && more) {
-                    setCursorHistory(prev => [...prev, lastVisible]);
+                if (pageIndex === 1) {
+                    cleanupListener(); // Reset listener
+                    let queryConstraints = [];
+                    if (statusFilter !== "all") {
+                        queryConstraints.push(where("status", "==", statusFilter));
+                    }
+                    queryConstraints.push(orderBy("orderDate", "desc"));
+                    queryConstraints.push(limit(ITEMS_PER_PAGE));
+                    
+                    const q = query(collection(db, "orders"), ...queryConstraints);
+                    unsubscribeRef.current = onSnapshot(q, async (snapshot) => {
+                        const fetchedOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        setOrders(fetchedOrders);
+                        setHasMore(snapshot.docs.length === ITEMS_PER_PAGE);
+                        await fetchRelatedData(fetchedOrders);
+                        if (snapshot.docs.length > 0) {
+                            setCursorHistory([null, snapshot.docs[snapshot.docs.length - 1]]);
+                        } else {
+                            setCursorHistory([null]);
+                        }
+                        setLoading(false);
+                    }, (error) => {
+                        console.error("Realtime fetch error:", error);
+                        setLoading(false);
+                    });
+                } else {
+                    const { getPaginatedOrders } = await import("@/services/orderService");
+                    const currentCursor = cursorHistory[pageIndex - 1];
+                    
+                    const { orders: fetchedOrders, lastVisible, hasMore: more } = await getPaginatedOrders(
+                        ITEMS_PER_PAGE, 
+                        currentCursor, 
+                        statusFilter
+                    );
+                    
+                    setOrders(fetchedOrders);
+                    setHasMore(more);
+                    await fetchRelatedData(fetchedOrders);
+                    
+                    if (pageIndex === cursorHistory.length && more) {
+                        setCursorHistory(prev => [...prev, lastVisible]);
+                    }
+                    setLoading(false);
                 }
             }
         } catch (error) {
             console.error("Error loading orders:", error);
-        } finally {
             setLoading(false);
         }
     };

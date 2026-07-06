@@ -1,4 +1,4 @@
-import React from "react";
+
 import Link from "next/link";
 import { LandingNav } from "@/components/landing/landing-nav";
 import { LandingFooter } from "@/components/landing/landing-footer";

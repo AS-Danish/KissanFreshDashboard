@@ -13,7 +13,8 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import React from "react"
+import { Fragment } from "react"
+
 
 export function SiteHeader() {
   const pathname = usePathname()
@@ -37,7 +38,7 @@ export function SiteHeader() {
               const href = `/${pathSegments.slice(0, index + 1).join('/')}`
 
               return (
-                <React.Fragment key={href}>
+                <Fragment key={href}>
                   <BreadcrumbItem className="hidden md:block">
                     {isLast ? (
                       <BreadcrumbPage>{title}</BreadcrumbPage>
@@ -48,7 +49,7 @@ export function SiteHeader() {
                     )}
                   </BreadcrumbItem>
                   {!isLast && <BreadcrumbSeparator className="hidden md:block" />}
-                </React.Fragment>
+                </Fragment>
               )
             })}
           </BreadcrumbList>

@@ -162,30 +162,45 @@ export default function OrderManagement() {
         // Fetch only needed users/riders (could be optimized with batched getDocs, using basic Promise.all for simplicity)
         const { getDoc, doc } = await import("firebase/firestore");
         
-        const newUsersMap = { ...usersMap };
-        const newRidersMap = { ...ridersMap };
-        
-        const userPromises = userIds.filter(id => !newUsersMap[id]).map(id => getDoc(doc(db, "users", id)));
-        const riderPromises = riderIds.filter(id => !newRidersMap[id]).map(id => getDoc(doc(db, "riders", id)));
-        
-        const userSnaps = await Promise.all(userPromises);
-        const riderSnaps = await Promise.all(riderPromises);
-        
-        userSnaps.forEach(snap => {
-            if (snap.exists()) {
-                newUsersMap[snap.id] = snap.data().name || snap.data().displayName || "Unknown User";
+        // Use functional state updates to read the latest state
+        setUsersMap(prev => {
+            const missingUserIds = userIds.filter(id => !prev[id]);
+            if (missingUserIds.length > 0) {
+                Promise.all(missingUserIds.map(id => getDoc(doc(db, "users", id)))).then(snaps => {
+                    setUsersMap(p => {
+                        const updated = { ...p };
+                        snaps.forEach(snap => {
+                            if (snap.exists()) {
+                                updated[snap.id] = snap.data().name || snap.data().displayName || "Unknown User";
+                            }
+                        });
+                        return updated;
+                    });
+                }).catch(console.error);
             }
+            return prev;
         });
         
-        riderSnaps.forEach(snap => {
-            if (snap.exists()) {
-                newRidersMap[snap.id] = snap.data().name;
-                if (snap.data().riderId) newRidersMap[snap.data().riderId] = snap.data().name;
+        setRidersMap(prev => {
+            const missingRiderIds = riderIds.filter(id => !prev[id]);
+            if (missingRiderIds.length > 0) {
+                Promise.all(missingRiderIds.map(id => getDoc(doc(db, "riders", id)))).then(snaps => {
+                    setRidersMap(p => {
+                        const updated = { ...p };
+                        snaps.forEach(snap => {
+                            if (snap.exists()) {
+                                updated[snap.id] = snap.data().name;
+                                if (snap.data().riderId) updated[snap.data().riderId] = snap.data().name;
+                            }
+                        });
+                        return updated;
+                    });
+                }).catch(console.error);
             }
+            return prev;
         });
         
-        setUsersMap(newUsersMap);
-        setRidersMap(newRidersMap);
+
     };
 
     const loadOrders = async (pageIndex, reset = false) => {
@@ -511,7 +526,7 @@ export default function OrderManagement() {
                                                         {order.riderId ? (
                                                             <div className="flex items-center gap-1.5 mt-0.5">
                                                                 <IconTruck className="h-3.5 w-3.5 text-blue-600" />
-                                                                <span className="text-xs font-medium text-blue-700 dark:text-blue-400 max-w-[100px] truncate">{ridersMap[order.riderId] || 'Unknown Rider'}</span>
+                                                                <span className="text-xs font-medium text-blue-700 dark:text-blue-400 max-w-[100px] truncate">{ridersMap[order.riderId] || `Unknown Rider (${order.riderId.substring(0, 6)})`}</span>
                                                             </div>
                                                         ) : (
                                                             <span className="text-[10px] text-muted-foreground uppercase opacity-60">Unassigned</span>

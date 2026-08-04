@@ -22,7 +22,7 @@ export const InvoiceTemplate = forwardRef(({ order, userName }, ref) => {
                 <div>
                     <h1 className="text-3xl font-bold text-teal-800">Kissan Fresh</h1>
                     <p className="text-sm font-bold text-slate-700 mt-1">Tax Invoice / Bill of Supply</p>
-                    <p className="text-xs text-slate-600 mt-1">FSSAI Lic. No. 12345678901234</p>
+                    <p className="text-xs text-slate-600 mt-1">FSSAI Lic. No. 21525044001001</p>
                 </div>
                 <div>
                     <div className={`px-3 py-1.5 border rounded-md ${paymentBg} ${paymentBorder}`}>

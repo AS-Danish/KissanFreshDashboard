@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 
-import { IconPackage, IconCheck, IconX, IconCopy, IconCheck as IconTick, IconArrowLeft, IconDownload } from "@tabler/icons-react"
+import { IconPackage, IconCheck, IconX, IconCopy, IconCheck as IconTick, IconArrowLeft, IconDownload, IconClipboard } from "@tabler/icons-react"
 
 import { OrderStatusCard } from "@/components/order/order-status-card"
 import { OrderLogisticsCard } from "@/components/order/order-logistics-card"
@@ -75,6 +75,7 @@ export default function OrderDetailsPage() {
     const [updating, setUpdating] = useState(false)
     const [copied, setCopied] = useState(false)
     const [userName, setUserName] = useState("")
+    const [userPhone, setUserPhone] = useState("")
     
     const [slots, setSlots] = useState([])
     const [riders, setRiders] = useState([])
@@ -111,13 +112,19 @@ export default function OrderDetailsPage() {
                 const data = { id: docSnap.id, ...docSnap.data() }
                 setOrder(data)
                 
-                // Fetch User Name
+                // Fetch User Name and Phone
                 if (data.userId) {
                     const userDoc = await getDoc(doc(db, "users", data.userId))
                     if (userDoc.exists()) {
                         setUserName(userDoc.data().name || userDoc.data().displayName || "Guest User")
+                        let phone = userDoc.data().phoneNumber || userDoc.data().phone || "No Number"
+                        if (phone.startsWith("+91") && phone.length > 3 && phone[3] !== ' ') {
+                            phone = "+91 " + phone.substring(3);
+                        }
+                        setUserPhone(phone)
                     } else {
                         setUserName("Guest User")
+                        setUserPhone("No Number")
                     }
                 }
             } else {
@@ -292,12 +299,12 @@ export default function OrderDetailsPage() {
                                 <div>
                                     <h1 className="text-3xl font-bold text-foreground">Order Details</h1>
                                     <div className="flex items-center gap-2 mt-2">
-                                        <span className="font-mono text-base text-muted-foreground">{order.orderNumber}</span>
+                                        <span className="font-mono text-xl text-primary font-bold">{order.id}</span>
                                         <Button 
                                             variant="ghost" 
                                             size="icon" 
                                             className="h-6 w-6 ml-2" 
-                                            onClick={() => copyToClipboard(order.orderNumber)}
+                                            onClick={() => copyToClipboard(order.id)}
                                         >
                                             {copied ? <IconTick className="h-4 w-4 text-secondary" /> : <IconCopy className="h-4 w-4" />}
                                         </Button>
@@ -314,6 +321,19 @@ export default function OrderDetailsPage() {
                                 </span>
                             </div>
                         </div>
+
+                        {/* Delivery Instructions */}
+                        {order.deliveryInstruction && (
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 shadow-sm flex items-start gap-4 html2pdf-ignore animate-in fade-in slide-in-from-bottom-2">
+                                <div className="p-3 bg-amber-100 text-amber-800 rounded-lg shadow-sm">
+                                    <IconClipboard className="h-6 w-6" />
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-bold text-amber-900 uppercase tracking-widest mb-1">Delivery Instructions</h3>
+                                    <p className="text-amber-800 font-medium whitespace-pre-wrap">{order.deliveryInstruction}</p>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Status & Logistics */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 html2pdf-ignore">
@@ -341,7 +361,7 @@ export default function OrderDetailsPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <OrderCustomerCard 
                                 userName={userName}
-                                userId={order.userId}
+                                userPhone={userPhone}
                                 deliveryAddress={order.deliveryAddress}
                                 orderDate={order.orderDate}
                             />

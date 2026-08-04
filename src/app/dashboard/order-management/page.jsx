@@ -46,7 +46,8 @@ import {
     IconClipboardCheck,
     IconCoin,
     IconCalendar,
-    IconClock
+    IconClock,
+    IconPhone
 } from "@tabler/icons-react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
@@ -129,6 +130,7 @@ export default function OrderManagement() {
     const router = useRouter();
     const [ridersMap, setRidersMap] = useState({});
     const [usersMap, setUsersMap] = useState({});
+    const [userPhonesMap, setUserPhonesMap] = useState({});
     const [copiedId, setCopiedId] = useState(null);
     
     // Pagination states
@@ -172,6 +174,19 @@ export default function OrderManagement() {
                         snaps.forEach(snap => {
                             if (snap.exists()) {
                                 updated[snap.id] = snap.data().name || snap.data().displayName || "Unknown User";
+                            }
+                        });
+                        return updated;
+                    });
+                    setUserPhonesMap(p => {
+                        const updated = { ...p };
+                        snaps.forEach(snap => {
+                            if (snap.exists()) {
+                                let phone = snap.data().phoneNumber || snap.data().phone || "No Number";
+                                if (phone.startsWith("+91") && phone.length > 3 && phone[3] !== ' ') {
+                                    phone = "+91 " + phone.substring(3);
+                                }
+                                updated[snap.id] = phone;
                             }
                         });
                         return updated;
@@ -481,8 +496,7 @@ export default function OrderManagement() {
                                             >
                                                 <TableCell className="px-6 py-4">
                                                     <div className="flex flex-col">
-                                                        <span className="font-bold text-sm">{order.orderNumber}</span>
-                                                        <span className="text-[10px] text-muted-foreground uppercase font-mono tracking-tighter opacity-60">ID: {order.id.substring(0, 10)}</span>
+                                                        <span className="font-bold text-sm text-primary">{order.id}</span>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
@@ -498,7 +512,13 @@ export default function OrderManagement() {
                                                         </div>
                                                         <div className="flex flex-col overflow-hidden max-w-[140px]">
                                                             <span className="text-sm font-medium truncate">{usersMap[order.userId] || 'Guest User'}</span>
-                                                            <span className="text-[10px] text-muted-foreground truncate uppercase font-mono tracking-tighter opacity-60">ID: {order.userId?.substring(0, 10)}</span>
+                                                            <span className="text-xs font-semibold text-muted-foreground truncate mt-0.5 flex items-center gap-1"><IconPhone className="w-3 h-3 opacity-50" /> {userPhonesMap[order.userId] || 'No Number'}</span>
+                                                            {order.deliveryInstruction && (
+                                                                <Badge className="mt-1 bg-amber-100 text-amber-800 hover:bg-amber-100 border-amber-200 text-[9px] font-bold uppercase w-fit px-1.5 py-0.5">
+                                                                    <IconClipboard className="w-3 h-3 mr-1 inline" />
+                                                                    Instructions
+                                                                </Badge>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </TableCell>

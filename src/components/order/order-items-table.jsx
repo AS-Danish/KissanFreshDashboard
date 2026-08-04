@@ -26,6 +26,7 @@ export function OrderItemsTable({ items }) {
                     <TableHeader className="bg-muted">
                         <TableRow>
                             <TableHead className="font-semibold text-foreground px-4 py-3">Product</TableHead>
+                            <TableHead className="text-center font-semibold text-foreground">Size</TableHead>
                             <TableHead className="text-center font-semibold text-foreground">Qty</TableHead>
                             <TableHead className="text-right font-semibold text-foreground">Price</TableHead>
                             <TableHead className="text-right font-semibold text-foreground px-4">Total</TableHead>
@@ -46,9 +47,16 @@ export function OrderItemsTable({ items }) {
                                         </div>
                                         <div className="flex flex-col">
                                             <span className="font-semibold text-sm text-foreground line-clamp-1">{item.title}</span>
-                                            <span className="text-[10px] text-muted-foreground font-mono">#{item.productId?.substring(0, 8).toUpperCase()}</span>
+                                            <div className="flex items-center gap-2 mt-0.5">
+                                                <span className="text-[10px] text-muted-foreground font-mono">#{item.productId?.substring(0, 8).toUpperCase()}</span>
+                                            </div>
                                         </div>
                                     </div>
+                                </TableCell>
+                                <TableCell className="text-center">
+                                    <span className="font-medium text-xs text-muted-foreground">
+                                        {item.unit || '-'}
+                                    </span>
                                 </TableCell>
                                 <TableCell className="text-center">
                                     <span className="font-medium text-xs">

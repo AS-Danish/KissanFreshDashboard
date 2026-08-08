@@ -795,3 +795,140 @@ exports.syncProductToAlgolia = require("firebase-functions/v2/firestore")
     return null;
   });
 
+/**
+ * Triggered when a new offer notification is created.
+ * If it's marked as instant, send it immediately.
+ */
+exports.onInstantOfferCreated = require("firebase-functions/v2/firestore")
+  .onDocumentCreated("offer_notifications/{docId}", async (event) => {
+    const data = event.data.data();
+    if (!data) return null;
+
+    if (data.isInstant && data.status === "PENDING") {
+      const message = {
+        topic: "all_users",
+        notification: {
+          title: data.title,
+          body: data.body,
+        },
+        android: {
+          notification: {
+            channelId: "high_importance_channel",
+            sound: "loud_alert",
+          },
+        },
+        apns: {
+          payload: {
+            aps: {
+              sound: "loud_alert.caf",
+            },
+          },
+        },
+        data: {
+          type: "OFFER_NOTIFICATION",
+          docId: event.params.docId,
+        },
+      };
+
+      if (data.imageUrl) {
+        message.notification.imageUrl = data.imageUrl;
+      }
+
+      try {
+        await admin.messaging().send(message);
+        console.log(`✅ Instant offer sent for doc ${event.params.docId}`);
+        return event.data.ref.update({
+          status: "SENT",
+          sentAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } catch (error) {
+        console.error(`🚨 Error sending instant offer ${event.params.docId}:`, error);
+        return event.data.ref.update({
+          status: "FAILED",
+          error: error.message,
+        });
+      }
+    }
+    return null;
+  });
+
+/**
+ * Scheduled function to process scheduled offers.
+ * Runs every 4 hours.
+ */
+exports.processScheduledOffers = require("firebase-functions/v2/scheduler")
+  .onSchedule({
+    schedule: "0 */4 * * *",
+    timeZone: "Asia/Kolkata",
+    retryCount: 3,
+  }, async (event) => {
+    const now = admin.firestore.Timestamp.now();
+    try {
+      const pendingOffersSnap = await db.collection("offer_notifications")
+        .where("status", "==", "PENDING")
+        .where("isInstant", "==", false)
+        .where("scheduledFor", "<=", now)
+        .get();
+
+      if (pendingOffersSnap.empty) {
+        console.log("No pending scheduled offers found.");
+        return null;
+      }
+
+      const batch = db.batch();
+
+      for (const doc of pendingOffersSnap.docs) {
+        const data = doc.data();
+        
+        const message = {
+          topic: "all_users",
+          notification: {
+            title: data.title,
+            body: data.body,
+          },
+          android: {
+            notification: {
+              channelId: "high_importance_channel",
+              sound: "loud_alert",
+            },
+          },
+          apns: {
+            payload: {
+              aps: {
+                sound: "loud_alert.caf",
+              },
+            },
+          },
+          data: {
+            type: "OFFER_NOTIFICATION",
+            docId: doc.id,
+          },
+        };
+
+        if (data.imageUrl) {
+          message.notification.imageUrl = data.imageUrl;
+        }
+
+        try {
+          await admin.messaging().send(message);
+          console.log(`✅ Scheduled offer sent for doc ${doc.id}`);
+          batch.update(doc.ref, {
+            status: "SENT",
+            sentAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        } catch (error) {
+          console.error(`🚨 Error sending scheduled offer ${doc.id}:`, error);
+          batch.update(doc.ref, {
+            status: "FAILED",
+            error: error.message,
+          });
+        }
+      }
+
+      await batch.commit();
+      console.log(`Processed ${pendingOffersSnap.size} scheduled offers.`);
+    } catch (error) {
+      console.error("Error in processScheduledOffers:", error);
+    }
+    return null;
+  });

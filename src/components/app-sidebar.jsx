@@ -18,6 +18,7 @@ import {
   IconSettings,
   IconUsers,
   IconCalendarTime,
+  IconBell,
 } from "@tabler/icons-react"
 
 import { NavDocuments } from "@/components/nav-documents"
@@ -99,6 +100,11 @@ const data = {
       title: "Manage Categories",
       url: "/dashboard/category-management",
       icon: IconListDetails,
+    },
+    {
+      title: "Offers Notification",
+      url: "/dashboard/offers",
+      icon: IconBell,
     },
     {
       title: "Coupon Management",

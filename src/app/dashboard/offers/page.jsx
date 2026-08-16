@@ -4,6 +4,7 @@ import { useState } from "react"
 import { db, storage } from "@/firebase/config"
 import { collection, addDoc, serverTimestamp, Timestamp } from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
+import imageCompression from "browser-image-compression"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -54,8 +55,17 @@ export default function OffersNotificationPage() {
       let imageUrl = null
 
       if (image) {
-        const imageRef = ref(storage, `offer_notifications/${Date.now()}_${image.name}`)
-        const uploadResult = await uploadBytes(imageRef, image)
+        const options = {
+            maxSizeMB: 0.1,
+            maxWidthOrHeight: 800,
+            initialQuality: 0.85,
+            useWebWorker: true,
+            fileType: 'image/webp'
+        };
+        const compressedFile = await imageCompression(image, options);
+        const originalName = image.name.split('.')[0] || 'image';
+        const imageRef = ref(storage, `offer_notifications/${Date.now()}_${originalName}.webp`)
+        const uploadResult = await uploadBytes(imageRef, compressedFile)
         imageUrl = await getDownloadURL(uploadResult.ref)
       }
 

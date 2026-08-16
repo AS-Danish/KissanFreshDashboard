@@ -193,8 +193,9 @@ export default function EditProduct() {
             const uploadedUrls = [];
             for (const image of newImages) {
                 const options = {
-                    maxSizeMB: 1,
-                    maxWidthOrHeight: 1024,
+                    maxSizeMB: 0.1,
+                    maxWidthOrHeight: 800,
+                    initialQuality: 0.85,
                     useWebWorker: true,
                     fileType: 'image/webp'
                 };
@@ -213,7 +214,7 @@ export default function EditProduct() {
             for (const v of variations) {
                 let vImageUrl = v.image;
                 if (v.image instanceof File) {
-                     const options = { maxSizeMB: 1, maxWidthOrHeight: 1024, useWebWorker: true, fileType: 'image/webp' };
+                     const options = { maxSizeMB: 0.1, maxWidthOrHeight: 800, initialQuality: 0.85, useWebWorker: true, fileType: 'image/webp' };
                      const compressedFile = await imageCompression(v.image, options);
                      const originalName = v.image.name.split('.')[0] || 'var_image';
                      const storageRef = ref(storage, `products/var_${Date.now()}_${originalName}.webp`);

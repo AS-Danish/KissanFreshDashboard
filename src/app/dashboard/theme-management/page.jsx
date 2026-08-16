@@ -69,8 +69,9 @@ export default function ThemeManagementPage() {
         setUploadingId(targetThemeName);
         try {
             const options = {
-                maxSizeMB: 1,
-                maxWidthOrHeight: 1024,
+                maxSizeMB: 0.1,
+                maxWidthOrHeight: 800,
+                initialQuality: 0.85,
                 useWebWorker: true,
                 fileType: 'image/webp'
             };

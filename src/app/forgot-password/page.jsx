@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { loginUser } from "@/services/authService";
-import { useAppStore } from "@/store/useAppStore";
-import { logAdminAction } from "@/services/loggerService";
+import { useState } from "react";
+import Link from "next/link";
+import { sendPasswordResetEmail } from "firebase/auth";
+import { auth } from "@/firebase/config";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,59 +17,33 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Loader2, LogIn, Eye, EyeOff } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, KeyRound, ArrowLeft } from "lucide-react";
 
-export default function LoginPage() {
-  const user = useAppStore((state) => state.user);
-  const router = useRouter();
-
+export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      window.location.replace("/dashboard");
-    }
-  }, [user]);
-
-  const handleLogin = async (e) => {
+  const handleResetPassword = async (e) => {
     e.preventDefault();
     setError("");
+    setSuccess(false);
     setIsLoading(true);
 
     try {
-      const userCredential = await loginUser(email, password);
-      const firebaseUser = userCredential.user;
-
-      // Verify admin role directly in the form submission
-      const { doc, getDoc } = await import("firebase/firestore");
-      const { db } = await import("@/firebase/config");
-      const userDocRef = doc(db, "users", firebaseUser.uid);
-      const userDocSnap = await getDoc(userDocRef);
-
-      const role = userDocSnap.data()?.role?.toUpperCase();
-      if (userDocSnap.exists() && (role === "ADMIN" || role === "MANAGEMENT")) {
-        // Success. The global state will redirect us to /dashboard automatically
-        await logAdminAction("USER_LOGIN", "USER", firebaseUser.uid, { email: firebaseUser.email, role });
-      } else {
-        const { logoutUser } = await import("@/services/authService");
-        await logoutUser();
-        setError("Access denied. Admin or Management account required.");
-        setIsLoading(false);
-      }
+      await sendPasswordResetEmail(auth, email);
+      setSuccess(true);
+      setEmail(""); // clear the input on success
     } catch (err) {
       const firebaseErrors = {
-        "auth/invalid-credential": "Invalid email or password.",
+        "auth/invalid-email": "Invalid email address format.",
         "auth/user-not-found": "No account found with this email.",
-        "auth/wrong-password": "Incorrect password.",
         "auth/too-many-requests": "Too many attempts. Please try again later.",
-        "auth/user-disabled": "This account has been disabled.",
         "auth/network-request-failed": "Network error. Check your connection.",
       };
       setError(firebaseErrors[err.code] ?? "Something went wrong. Please try again.");
+    } finally {
       setIsLoading(false);
     }
   };
@@ -82,14 +55,14 @@ export default function LoginPage() {
         {/* Logo / Brand mark */}
         <div className="flex flex-col items-center gap-2 text-center">
           <div className="h-12 w-12 rounded-2xl bg-slate-900 dark:bg-slate-100 flex items-center justify-center shadow-md">
-            <LogIn className="h-5 w-5 text-white dark:text-slate-900" />
+            <KeyRound className="h-5 w-5 text-white dark:text-slate-900" />
           </div>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-50"
               style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-            Welcome back
+            Reset Password
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Sign in to your account to continue
+            We will send a reset link to your email
           </p>
         </div>
 
@@ -97,15 +70,27 @@ export default function LoginPage() {
         <Card className="border border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-200/60 dark:shadow-slate-950/60">
           <CardHeader className="space-y-1 pb-4">
             <CardTitle className="text-lg font-medium text-slate-800 dark:text-slate-200">
-              Sign in
+              Forgot Password
             </CardTitle>
             <CardDescription className="text-slate-500 dark:text-slate-400 text-sm">
-              Enter your credentials below
+              Enter your registered email address below
             </CardDescription>
           </CardHeader>
 
-          <form onSubmit={handleLogin}>
+          <form onSubmit={handleResetPassword}>
             <CardContent className="space-y-4">
+              
+              {/* Success Alert */}
+              {success && (
+                <Alert
+                  className="border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/40 animate-in fade-in slide-in-from-top-1 duration-300"
+                >
+                  <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  <AlertDescription className="text-sm text-green-800 dark:text-green-200 ml-2">
+                    A password reset link has been sent to your email!
+                  </AlertDescription>
+                </Alert>
+              )}
 
               {/* Error Alert */}
               {error && (
@@ -137,49 +122,6 @@ export default function LoginPage() {
                   className="h-10 border-slate-200 dark:border-slate-700 focus-visible:ring-slate-400 dark:focus-visible:ring-slate-500 placeholder:text-slate-400 transition-colors"
                 />
               </div>
-
-              {/* Password Field */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label
-                    htmlFor="password"
-                    className="text-sm font-medium text-slate-700 dark:text-slate-300"
-                  >
-                    Password
-                  </Label>
-                  <a
-                    href="/forgot-password"
-                    className="text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors underline-offset-4 hover:underline"
-                  >
-                    Forgot password?
-                  </a>
-                </div>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    disabled={isLoading}
-                    className="h-10 pr-10 border-slate-200 dark:border-slate-700 focus-visible:ring-slate-400 dark:focus-visible:ring-slate-500 placeholder:text-slate-400 transition-colors"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((prev) => !prev)}
-                    disabled={isLoading}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                    className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors disabled:pointer-events-none"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
-              </div>
             </CardContent>
 
             <CardFooter className="flex flex-col gap-4 pt-2">
@@ -192,13 +134,17 @@ export default function LoginPage() {
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Signing in…
+                    Sending link…
                   </>
                 ) : (
-                  "Sign in"
+                  "Send Reset Link"
                 )}
               </Button>
-
+              
+              <Link href="/login" className="flex items-center justify-center text-sm text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors w-full group py-2">
+                <ArrowLeft className="h-3.5 w-3.5 mr-1.5 transition-transform group-hover:-translate-x-1" />
+                Back to sign in
+              </Link>
             </CardFooter>
           </form>
         </Card>

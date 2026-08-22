@@ -25,6 +25,7 @@ import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
+import { useAppStore } from "@/store/useAppStore"
 import {
   Sidebar,
   SidebarContent,
@@ -35,10 +36,10 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-const data = {
+const staticData = {
   user: {
-    name: "shadcn",
-    email: "m@example.com",
+    name: "Admin",
+    email: "admin@example.com",
     avatar: "/avatars/shadcn.jpg",
   },
   navMain: [
@@ -126,6 +127,12 @@ const data = {
       url: "/dashboard/theme-management",
       icon: IconCamera,
     },
+    {
+      title: "User Management",
+      url: "/dashboard/user-management",
+      icon: IconUsers,
+      adminOnly: true,
+    },
   ],
   navClouds: [
     {
@@ -199,6 +206,33 @@ const data = {
 export function AppSidebar({
   ...props
 }) {
+  const { user, userRole, userPermissions } = useAppStore();
+
+  const isManagement = userRole === "MANAGEMENT";
+
+  // Filter navigation based on permissions
+  const filteredNavMain = staticData.navMain.filter((item) => {
+    if (item.adminOnly && userRole !== "ADMIN") return false;
+    if (item.title === "Dashboard") return true; // Always show dashboard
+    if (isManagement) {
+      return !!userPermissions?.[item.title];
+    }
+    return true; // Admin sees everything
+  });
+
+  const filteredDocuments = staticData.documents.filter((item) => {
+    if (isManagement) {
+      return !!userPermissions?.[item.name];
+    }
+    return true;
+  });
+
+  const userData = {
+    name: user?.displayName || userRole || "Admin",
+    email: user?.email || "",
+    avatar: staticData.user.avatar,
+  };
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -214,12 +248,12 @@ export function AppSidebar({
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
-        <NavDocuments items={data.documents} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        <NavMain items={filteredNavMain} />
+        <NavDocuments items={filteredDocuments} />
+        <NavSecondary items={staticData.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={userData} />
       </SidebarFooter>
     </Sidebar>
   );

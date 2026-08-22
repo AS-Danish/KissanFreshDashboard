@@ -932,3 +932,112 @@ exports.processScheduledOffers = require("firebase-functions/v2/scheduler")
     }
     return null;
   });
+
+/**
+ * Callable function to create management users.
+ * Only accessible by an existing ADMIN.
+ */
+exports.createUser = require("firebase-functions/v2/https")
+  .onCall(async (request) => {
+    const data = request.data;
+    const auth = request.auth;
+    const { HttpsError } = require("firebase-functions/v2/https");
+
+    if (!auth) {
+      throw new HttpsError("unauthenticated", "You must be logged in to create a user.");
+    }
+
+    try {
+      // Verify requester is an ADMIN
+      const requesterDoc = await db.collection("users").doc(auth.uid).get();
+      if (!requesterDoc.exists || requesterDoc.data()?.role?.toUpperCase() !== "ADMIN") {
+        throw new HttpsError("permission-denied", "Only administrators can create users.");
+      }
+
+      const { email, password, role } = data;
+
+      if (!email || !password || !role) {
+        throw new HttpsError("invalid-argument", "Missing required fields (email, password, role).");
+      }
+
+      const upperRole = role.toUpperCase();
+      if (upperRole !== "ADMIN" && upperRole !== "MANAGEMENT") {
+        throw new HttpsError("invalid-argument", "Role must be ADMIN or MANAGEMENT.");
+      }
+
+      // Create user in Firebase Auth
+      const userRecord = await admin.auth().createUser({
+        email: email,
+        password: password,
+      });
+
+      // Create user document in Firestore
+      await db.collection("users").doc(userRecord.uid).set({
+        email: email,
+        role: upperRole,
+        permissions: {},
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      return {
+        success: true,
+        uid: userRecord.uid,
+        message: "User successfully created.",
+      };
+    } catch (error) {
+      console.error("Error creating user:", error);
+      if (error instanceof HttpsError) {
+        throw error;
+      }
+      throw new HttpsError("internal", error.message);
+    }
+  });
+
+/**
+ * Callable function to update a user's password.
+ * Only accessible by an existing ADMIN.
+ */
+exports.updateUserPassword = require("firebase-functions/v2/https")
+  .onCall(async (request) => {
+    const data = request.data;
+    const auth = request.auth;
+    const { HttpsError } = require("firebase-functions/v2/https");
+
+    if (!auth) {
+      throw new HttpsError("unauthenticated", "You must be logged in to update a password.");
+    }
+
+    try {
+      // Verify requester is an ADMIN
+      const requesterDoc = await db.collection("users").doc(auth.uid).get();
+      if (!requesterDoc.exists || requesterDoc.data()?.role?.toUpperCase() !== "ADMIN") {
+        throw new HttpsError("permission-denied", "Only administrators can update passwords.");
+      }
+
+      const { uid, newPassword } = data;
+
+      if (!uid || !newPassword) {
+        throw new HttpsError("invalid-argument", "Missing required fields (uid, newPassword).");
+      }
+
+      if (newPassword.length < 6) {
+        throw new HttpsError("invalid-argument", "Password must be at least 6 characters long.");
+      }
+
+      // Update user password in Firebase Auth
+      await admin.auth().updateUser(uid, {
+        password: newPassword,
+      });
+
+      return {
+        success: true,
+        message: "Password updated successfully.",
+      };
+    } catch (error) {
+      console.error("Error updating user password:", error);
+      if (error instanceof HttpsError) {
+        throw error;
+      }
+      throw new HttpsError("internal", error.message);
+    }
+  });

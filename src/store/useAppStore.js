@@ -5,6 +5,8 @@ import { listenToAuthChanges } from '@/services/authService';
 export const useAppStore = create((set, get) => ({
   // Auth State
   user: null,
+  userRole: null,
+  userPermissions: {},
   authLoading: true,
 
   initAuth: () => {
@@ -17,22 +19,34 @@ export const useAppStore = create((set, get) => ({
           const userDocRef = doc(db, "users", firebaseUser.uid);
           const userDocSnap = await getDoc(userDocRef);
 
-          if (userDocSnap.exists() && userDocSnap.data()?.role?.toUpperCase() === "ADMIN") {
-            set({ user: firebaseUser, authLoading: false });
-            document.cookie = "auth=true; path=/; max-age=2592000; SameSite=Lax"; // 30 days
-          } else {
-            const { logoutUser } = await import("@/services/authService");
-            await logoutUser();
-            set({ user: null, authLoading: false });
-            document.cookie = "auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
+          if (userDocSnap.exists()) {
+            const userData = userDocSnap.data();
+            const role = userData?.role?.toUpperCase();
+            
+            if (role === "ADMIN" || role === "MANAGEMENT") {
+              set({ 
+                user: firebaseUser, 
+                userRole: role,
+                userPermissions: userData.permissions || {},
+                authLoading: false 
+              });
+              document.cookie = "auth=true; path=/; max-age=2592000; SameSite=Lax"; // 30 days
+              return;
+            }
           }
+          
+          // If not an admin/management user, logout
+          const { logoutUser } = await import("@/services/authService");
+          await logoutUser();
+          set({ user: null, userRole: null, userPermissions: {}, authLoading: false });
+          document.cookie = "auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
         } catch (error) {
           console.error("Error verifying admin role", error);
-          set({ user: null, authLoading: false });
+          set({ user: null, userRole: null, userPermissions: {}, authLoading: false });
           document.cookie = "auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
         }
       } else {
-        set({ user: null, authLoading: false });
+        set({ user: null, userRole: null, userPermissions: {}, authLoading: false });
         document.cookie = "auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
       }
     });

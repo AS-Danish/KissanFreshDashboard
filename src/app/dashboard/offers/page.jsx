@@ -65,7 +65,10 @@ export default function OffersNotificationPage() {
         const compressedFile = await imageCompression(image, options);
         const originalName = image.name.split('.')[0] || 'image';
         const imageRef = ref(storage, `offer_notifications/${Date.now()}_${originalName}.webp`)
-        const uploadResult = await uploadBytes(imageRef, compressedFile)
+        const uploadResult = await uploadBytes(imageRef, compressedFile, {
+          contentType: "image/webp",
+          cacheControl: "public,max-age=31536000,immutable",
+        })
         imageUrl = await getDownloadURL(uploadResult.ref)
       }
 

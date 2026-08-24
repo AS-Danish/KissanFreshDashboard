@@ -5,7 +5,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "images:migrate:dry-run": "node scripts/optimize-firebase-images.mjs",
+    "images:migrate": "node scripts/optimize-firebase-images.mjs --apply",
+    "images:migrate:rollback": "node scripts/optimize-firebase-images.mjs --rollback"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

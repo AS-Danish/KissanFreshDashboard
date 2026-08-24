@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchThemes, updateThemes } from "@/services/appConfigService";
+import { fetchThemes, getThemeName, THEME_COLOR_FIELDS, updateThemes } from "@/services/appConfigService";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { storage } from "@/firebase/config";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-import { IconUpload, IconLoader2 } from "@tabler/icons-react";
+import { IconCheck, IconLoader2, IconPalette, IconUpload } from "@tabler/icons-react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -21,6 +21,16 @@ export default function ThemeManagementPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [uploadingId, setUploadingId] = useState(null);
+
+    const colorLabels = {
+        primary: "Primary / buttons",
+        accent: "Accent / highlights",
+        background: "Page background",
+        surface: "Cards / sheets",
+        success: "Success states",
+        error: "Errors / alerts",
+    };
+    const isValidHex = (value) => /^#[0-9A-F]{6}$/i.test(value || "");
 
     useEffect(() => {
         loadThemes();
@@ -41,7 +51,7 @@ export default function ThemeManagementPage() {
     const handleToggle = (targetThemeName) => {
         setThemes(prevThemes => 
             prevThemes.map(theme => {
-                const themeName = Object.keys(theme).find(k => k !== "imageURL");
+                const themeName = getThemeName(theme);
                 return {
                     ...theme,
                     [themeName]: themeName === targetThemeName ? true : false
@@ -53,13 +63,20 @@ export default function ThemeManagementPage() {
     const handleImageUrlChange = (targetThemeName, newUrl) => {
         setThemes(prevThemes => 
             prevThemes.map(theme => {
-                const themeName = Object.keys(theme).find(k => k !== "imageURL");
+                const themeName = getThemeName(theme);
                 if (themeName === targetThemeName) {
                     return { ...theme, imageURL: newUrl };
                 }
                 return theme;
             })
         );
+    };
+
+    const handleColorChange = (targetThemeName, colorKey, value) => {
+        setThemes(prevThemes => prevThemes.map(theme => {
+            if (getThemeName(theme) !== targetThemeName) return theme;
+            return { ...theme, colors: { ...theme.colors, [colorKey]: value.toUpperCase() } };
+        }));
     };
 
     const handleImageUpload = async (targetThemeName, event) => {
@@ -78,12 +95,15 @@ export default function ThemeManagementPage() {
             const compressedFile = await imageCompression(file, options);
             const originalName = file.name.split('.')[0] || 'image';
             const storageRef = ref(storage, `products/themes/${Date.now()}_${originalName}.webp`);
-            const uploadTask = await uploadBytesResumable(storageRef, compressedFile);
+            const uploadTask = await uploadBytesResumable(storageRef, compressedFile, {
+                contentType: "image/webp",
+                cacheControl: "public,max-age=31536000,immutable",
+            });
             const downloadURL = await getDownloadURL(uploadTask.ref);
             
             // Immediately update state and save to Firestore
             const updatedThemes = themes.map(theme => {
-                const themeName = Object.keys(theme).find(k => k !== "imageURL");
+                const themeName = getThemeName(theme);
                 if (themeName === targetThemeName) {
                     return { ...theme, imageURL: downloadURL };
                 }
@@ -105,10 +125,21 @@ export default function ThemeManagementPage() {
     };
 
     const handleSave = async () => {
+        const invalidTheme = themes.find(theme =>
+            THEME_COLOR_FIELDS.some(colorKey => !isValidHex(theme.colors?.[colorKey]))
+        );
+        if (invalidTheme) {
+            toast.error("Check the color codes", {
+                description: `${getThemeName(invalidTheme)} contains an invalid value. Use six-digit hex colors such as #14B8A6.`,
+            });
+            return;
+        }
         setSaving(true);
         try {
             await updateThemes(themes);
-            toast.success("Themes updated successfully.");
+            toast.success("Theme published", {
+                description: "Colors and branding will update in the consumer app automatically.",
+            });
         } catch (error) {
             toast.error("Failed to save themes.");
         } finally {
@@ -144,20 +175,24 @@ export default function ThemeManagementPage() {
             <SidebarInset>
                 <SiteHeader />
                 <div className="flex-1 space-y-4 p-8 pt-6">
-                    <div className="flex items-center justify-between space-y-2 mb-6">
-                        <h2 className="text-3xl font-bold tracking-tight">Theme Management</h2>
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
+                        <div>
+                            <h2 className="text-3xl font-bold tracking-tight">Theme Management</h2>
+                            <p className="mt-1 text-sm text-muted-foreground">Choose one active theme and publish its core app colors.</p>
+                        </div>
                         <Button onClick={handleSave} disabled={saving || uploadingId !== null}>
-                            {saving ? "Saving..." : "Save Changes"}
+                            {saving ? <IconLoader2 className="mr-2 h-4 w-4 animate-spin" /> : <IconCheck className="mr-2 h-4 w-4" />}
+                            {saving ? "Publishing..." : "Publish Theme"}
                         </Button>
                     </div>
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid gap-5 xl:grid-cols-2">
                         {themes.map(theme => {
-                            const themeName = Object.keys(theme).find(k => k !== "imageURL");
+                            const themeName = getThemeName(theme);
                             const isEnabled = theme[themeName];
                             const imageUrl = theme.imageURL;
                             
                             return (
-                                <Card key={themeName} className={isEnabled ? "border-primary" : ""}>
+                                <Card key={themeName} className={isEnabled ? "border-primary ring-2 ring-primary/10" : ""}>
                                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                         <CardTitle className="text-sm font-medium">
                                             {themeName}
@@ -169,8 +204,41 @@ export default function ThemeManagementPage() {
                                     </CardHeader>
                                     <CardContent>
                                         <div className="space-y-4">
+                                            <div className="space-y-3 rounded-xl border bg-muted/20 p-4">
+                                                <div className="flex items-center gap-2">
+                                                    <IconPalette className="h-4 w-4 text-primary" />
+                                                    <p className="text-sm font-semibold">Core app colors</p>
+                                                </div>
+                                                <div className="grid gap-3 sm:grid-cols-2">
+                                                    {THEME_COLOR_FIELDS.map(colorKey => {
+                                                        const colorValue = theme.colors?.[colorKey] || "#000000";
+                                                        return (
+                                                            <div className="space-y-1.5" key={colorKey}>
+                                                                <Label htmlFor={`${themeName}-${colorKey}`} className="text-xs">{colorLabels[colorKey]}</Label>
+                                                                <div className="flex items-center gap-2">
+                                                                    <Input
+                                                                        aria-label={`${colorLabels[colorKey]} color picker`}
+                                                                        type="color"
+                                                                        value={isValidHex(colorValue) ? colorValue : "#000000"}
+                                                                        onChange={(e) => handleColorChange(themeName, colorKey, e.target.value)}
+                                                                        className="h-9 w-11 cursor-pointer p-1"
+                                                                    />
+                                                                    <Input
+                                                                        id={`${themeName}-${colorKey}`}
+                                                                        value={colorValue}
+                                                                        onChange={(e) => handleColorChange(themeName, colorKey, e.target.value)}
+                                                                        pattern="^#[0-9A-Fa-f]{6}$"
+                                                                        maxLength={7}
+                                                                        className="h-9 font-mono text-xs uppercase"
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
                                             <div className="space-y-2 pt-4">
-                                                <Label htmlFor={`image-${themeName}`}>Image URL</Label>
+                                                <Label htmlFor={`image-${themeName}`}>Header artwork (optional)</Label>
                                                 <div className="flex gap-2">
                                                     <Input 
                                                         id={`image-${themeName}`}

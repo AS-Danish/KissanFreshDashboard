@@ -35,6 +35,10 @@ import imageCompression from "browser-image-compression";
 import { logAdminAction } from "@/services/loggerService";
 
 const KISSAN_FRESH_TAGS = ["100% Organic", "Fresh", "Pure", "Farm-to-table", "Locally Sourced", "Vegan", "Gluten-Free"];
+const IMAGE_UPLOAD_METADATA = {
+    contentType: "image/webp",
+    cacheControl: "public,max-age=31536000,immutable",
+};
 const HOME_FOOD_TAGS = ["Homemade", "Preservative-free", "Traditional", "Authentic", "Mom's Recipe", "Spicy", "Healthy"];
 export default function AddNewProduct() {
     const { categories } = useAppStore();
@@ -129,9 +133,10 @@ export default function AddNewProduct() {
             const imageUrls = [];
             for (const image of images) {
                 const options = {
-                    maxSizeMB: 0.1,
-                    maxWidthOrHeight: 800,
-                    initialQuality: 0.85,
+                    maxSizeMB: 0.06,
+                    maxWidthOrHeight: 600,
+                    initialQuality: 0.72,
+                    maxIteration: 20,
                     useWebWorker: true,
                     fileType: 'image/webp'
                 };
@@ -139,7 +144,7 @@ export default function AddNewProduct() {
                 
                 const originalName = image.name.split('.')[0] || 'image';
                 const storageRef = ref(storage, `products/${Date.now()}_${originalName}.webp`);
-                const uploadTask = await uploadBytesResumable(storageRef, compressedFile);
+                const uploadTask = await uploadBytesResumable(storageRef, compressedFile, IMAGE_UPLOAD_METADATA);
                 const downloadURL = await getDownloadURL(uploadTask.ref);
                 imageUrls.push(downloadURL);
             }
@@ -149,11 +154,11 @@ export default function AddNewProduct() {
             for (const v of variations) {
                 let vImageUrl = null;
                 if (v.image) {
-                     const options = { maxSizeMB: 0.1, maxWidthOrHeight: 800, initialQuality: 0.85, useWebWorker: true, fileType: 'image/webp' };
+                     const options = { maxSizeMB: 0.05, maxWidthOrHeight: 500, initialQuality: 0.7, maxIteration: 20, useWebWorker: true, fileType: 'image/webp' };
                      const compressedFile = await imageCompression(v.image, options);
                      const originalName = v.image.name.split('.')[0] || 'var_image';
                      const storageRef = ref(storage, `products/var_${Date.now()}_${originalName}.webp`);
-                     const uploadTask = await uploadBytesResumable(storageRef, compressedFile);
+                     const uploadTask = await uploadBytesResumable(storageRef, compressedFile, IMAGE_UPLOAD_METADATA);
                      vImageUrl = await getDownloadURL(uploadTask.ref);
                 }
                 finalVariations.push({

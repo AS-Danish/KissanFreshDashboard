@@ -1,0 +1,232 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function currentUser() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && currentUser().role in ['ADMIN', 'admin'];
+    }
+
+    function isManagement() {
+      return signedIn()
+        && currentUser().role in ['MANAGEMENT', 'management'];
+    }
+
+    function hasPermission(permission) {
+      return isManagement()
+        && 'permissions' in currentUser()
+        && permission in currentUser().permissions
+        && currentUser().permissions[permission] == true;
+    }
+
+    function can(permission) {
+      return isAdmin() || hasPermission(permission);
+    }
+
+    function owns(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isConsumerRole(data) {
+      return 'role' in data
+        && data.role in ['user', 'USER', 'customer', 'CUSTOMER'];
+    }
+
+    function selfEditableUserFieldsOnly() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'name',
+        'phoneNumber',
+        'email',
+        'address',
+        'imageUrl',
+        'onboardingCompleted',
+        'savedAddresses',
+        'wishlist',
+        'fcmToken'
+      ]);
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create, delete: if can('Product Management');
+      allow update: if can('Product Management')
+        || (can('Stock Management')
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'stockCount', 'inStock', 'variations', 'updatedAt'
+          ]));
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if can('Manage Categories');
+    }
+
+    match /sections/{sectionId} {
+      allow read: if true;
+      allow write: if can('Manage Categories');
+    }
+
+    match /coupons/{couponId} {
+      allow read: if true;
+      allow write: if can('Coupon Management');
+    }
+
+    match /todays_specials/{dateId} {
+      allow read: if true;
+      allow write: if can('Product Management');
+    }
+
+    match /app_config/{configId} {
+      allow read: if true;
+      allow write: if can('Product Management')
+        || can('Stock Management')
+        || can('Manage Categories')
+        || can('Theme Management');
+    }
+
+    match /offer_notifications/{notificationId} {
+      allow read, write: if can('Offers Notification');
+    }
+
+    match /users/{userId} {
+      allow get: if owns(userId) || isAdmin() || isManagement();
+      allow list: if isAdmin()
+        || can('User Management')
+        || can('Order Management')
+        || can('Sales Report');
+
+      allow create: if owns(userId)
+        && request.resource.data.id == request.auth.uid
+        && isConsumerRole(request.resource.data)
+        && !('permissions' in request.resource.data);
+
+      allow update: if isAdmin()
+        || (owns(userId)
+          && resource.data.role == request.resource.data.role
+          && selfEditableUserFieldsOnly());
+
+      allow delete: if owns(userId) || isAdmin();
+
+      match /preferences/{preferenceId} {
+        allow read, write: if owns(userId) || isAdmin();
+      }
+    }
+
+    match /orders/{orderId} {
+      allow get, list: if can('Order Management')
+        || can('Sales Report')
+        || (signedIn() && resource.data.userId == request.auth.uid);
+
+      // Orders are created by the createOrder callable function, which uses
+      // the Admin SDK. Direct client creates are deliberately denied.
+      allow create: if false;
+
+      allow update: if can('Order Management')
+        || (signedIn()
+          && resource.data.userId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'userId', 'isDeletedByConsumer', 'deletionReason'
+          ])
+          && request.resource.data.userId == 'deleted_' + request.auth.uid
+          && request.resource.data.isDeletedByConsumer == true);
+
+      allow delete: if false;
+    }
+
+    match /riders/{riderId} {
+      allow get: if signedIn();
+      allow list: if can('Rider Management')
+        || can('Slot Management')
+        || can('Order Management');
+      allow write: if can('Rider Management') || can('Slot Management');
+    }
+
+    match /slots/{slotId} {
+      allow read: if signedIn();
+      allow write: if can('Slot Management') || can('Order Management');
+
+      match /riders/{riderId} {
+        allow read, write: if can('Slot Management') || can('Order Management');
+      }
+    }
+
+    match /config/{configId} {
+      allow read, write: if can('Slot Management');
+    }
+
+    match /admin_config/{configId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /admin_tokens/{tokenId} {
+      allow create, update: if (isAdmin() || isManagement())
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.token == tokenId;
+      allow delete: if (isAdmin() || isManagement()) && resource.data.uid == request.auth.uid;
+      allow read: if false;
+    }
+
+    match /dashboard_tokens/{tokenId} {
+      allow create, update: if (isAdmin() || isManagement())
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.token == tokenId;
+      allow delete: if (isAdmin() || isManagement())
+        && resource.data.userId == request.auth.uid;
+      allow read: if false;
+    }
+
+    match /audit_logs/{logId} {
+      allow create: if (isAdmin() || isManagement())
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.userEmail == request.auth.token.email;
+      allow read: if can('Audit Logs');
+      allow update, delete: if false;
+    }
+
+    match /failed_orders/{failureId} {
+      allow create: if signedIn()
+        && request.resource.data.keys().hasAll([
+          'userId', 'paymentId', 'status', 'refundStatus',
+          'totalAmount', 'currency', 'timestamp'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'userId', 'paymentId', 'status', 'refundStatus',
+          'totalAmount', 'currency', 'timestamp', 'error', 'orderData'
+        ])
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.paymentId is string
+        && request.resource.data.status in [
+          'paid_but_stock_failed', 'paid_but_failed_before_creation'
+        ]
+        && request.resource.data.refundStatus == 'pending'
+        && request.resource.data.totalAmount is number
+        && request.resource.data.totalAmount > 0
+        && request.resource.data.currency == 'INR'
+        && request.resource.data.timestamp == request.time;
+      allow read, update, delete: if false;
+    }
+
+    match /maps_cache/{cacheId} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create, update: if signedIn()
+        && request.resource.data.keys().hasOnly(['timestamp', 'result'])
+        && request.resource.data.timestamp is string
+        && request.resource.data.result is map;
+      allow delete: if signedIn();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

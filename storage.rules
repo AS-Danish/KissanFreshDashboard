@@ -1,0 +1,72 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function currentUser() {
+      return firestore.get(
+        /databases/(default)/documents/users/$(request.auth.uid)
+      ).data;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && currentUser().role in ['ADMIN', 'admin'];
+    }
+
+    function isManagement() {
+      return signedIn()
+        && currentUser().role in ['MANAGEMENT', 'management'];
+    }
+
+    function hasPermission(permission) {
+      return isManagement()
+        && 'permissions' in currentUser()
+        && permission in currentUser().permissions
+        && currentUser().permissions[permission] == true;
+    }
+
+    function can(permission) {
+      return isAdmin() || hasPermission(permission);
+    }
+
+    function validImage(maxBytes) {
+      return request.resource != null
+        && request.resource.size < maxBytes
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    match /products/themes/{fileName} {
+      allow read: if true;
+      allow create, update: if can('Theme Management') && validImage(5 * 1024 * 1024);
+      allow delete: if can('Theme Management');
+    }
+
+    match /products/{fileName} {
+      allow read: if true;
+      allow create, update: if can('Product Management') && validImage(5 * 1024 * 1024);
+      allow delete: if can('Product Management');
+    }
+
+    match /offer_notifications/{fileName} {
+      allow read: if true;
+      allow create, update: if can('Offers Notification') && validImage(5 * 1024 * 1024);
+      allow delete: if can('Offers Notification');
+    }
+
+    match /profile_images/{fileName} {
+      allow read: if true;
+      allow create, update: if signedIn()
+        && fileName == request.auth.uid + '.jpg'
+        && validImage(3 * 1024 * 1024);
+      allow delete: if signedIn() && fileName == request.auth.uid + '.jpg';
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

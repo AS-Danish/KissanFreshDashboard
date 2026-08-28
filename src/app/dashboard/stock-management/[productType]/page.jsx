@@ -1,17 +1,13 @@
 "use client"
 
+import { toast } from "sonner";
+
 import Link from "next/link";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import { useState, useMemo, useEffect } from "react"
 import { db } from "@/firebase/config"
 import { collection, onSnapshot, doc, updateDoc } from "firebase/firestore"
-import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
-import {
-    SidebarInset,
-    SidebarProvider,
-} from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -107,7 +103,7 @@ export default function StockManagement() {
 
     const handleSaveStock = async (productRow) => {
         if (editStockValue === "" || isNaN(Number(editStockValue)) || Number(editStockValue) < 0) {
-            alert("Please enter a valid stock count (0 or above).");
+            toast.error("Enter a valid stock count of zero or more");
             return;
         }
 
@@ -143,7 +139,7 @@ export default function StockManagement() {
             setEditingProductId(null);
         } catch (error) {
             console.error("Error updating stock: ", error);
-            alert("Failed to update stock.");
+            toast.error("Failed to update stock");
         } finally {
             setUpdatingStock(false);
         }
@@ -187,20 +183,13 @@ export default function StockManagement() {
     const paginatedProducts = filteredProducts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
     // Reset pagination when filters change
-    useMemo(() => {
+    useEffect(() => {
         setCurrentPage(1);
     }, [debouncedSearchQuery, categoryFilter]);
 
     return (
-        <SidebarProvider
-            style={{
-                "--sidebar-width": "calc(var(--spacing) * 72)",
-                "--header-height": "calc(var(--spacing) * 12)"
-            }}>
-            <AppSidebar variant="inset" />
-            <SidebarInset>
-                <SiteHeader />
-                <div className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+        <>
+                <div className="dashboard-page dashboard-page-wide">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <h2 className="text-2xl font-bold tracking-tight text-foreground">
                             {productType === "home-food" ? "Home Food Stock Management" : "Kissan Fresh Stock Management"}
@@ -280,6 +269,7 @@ export default function StockManagement() {
                                                                 src={productRow.images[0]}
                                                                 alt={productRow.name}
                                                                 fill
+                                                                sizes="48px"
                                                                 className="object-cover"
                                                             />
                                                         ) : (
@@ -400,7 +390,6 @@ export default function StockManagement() {
                         </div>
                     )}
                 </div>
-            </SidebarInset>
-        </SidebarProvider>
+            </>
     );
 }

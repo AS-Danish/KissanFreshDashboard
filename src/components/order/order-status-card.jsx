@@ -9,10 +9,10 @@ import {
 
 export function OrderStatusCard({ status, updating, onUpdateStatus }) {
     return (
-        <Card className="rounded-xl border shadow-sm">
-            <CardContent className="p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <Card>
+            <CardContent className="flex flex-col items-start justify-between gap-5 p-5 sm:flex-row sm:items-center">
                 <div className="space-y-1">
-                    <h4 className="text-sm font-semibold text-foreground uppercase tracking-wider">Update Order Status</h4>
+                    <h4 className="text-sm font-semibold text-foreground">Order status</h4>
                     <p className="text-xs text-muted-foreground">Change the current fulfillment state of this order.</p>
                 </div>
                 <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -21,7 +21,7 @@ export function OrderStatusCard({ status, updating, onUpdateStatus }) {
                         value={status?.toUpperCase()} 
                         onValueChange={onUpdateStatus}
                     >
-                        <SelectTrigger className="w-full sm:w-[180px] h-10 font-medium text-foreground">
+                        <SelectTrigger aria-label="Order status" className="h-10 w-full font-medium text-foreground sm:w-[190px]">
                             <SelectValue placeholder="Update Status" />
                         </SelectTrigger>
                         <SelectContent>

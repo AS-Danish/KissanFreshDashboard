@@ -1,17 +1,13 @@
 "use client"
 
+import { toast } from "sonner";
+
 import Link from "next/link";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { useState, useMemo, useEffect } from "react"
 import { db } from "@/firebase/config"
 import { collection, onSnapshot, doc, updateDoc } from "firebase/firestore"
-import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
-import {
-    SidebarInset,
-    SidebarProvider,
-} from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -142,7 +138,7 @@ export default function BulkAddStock() {
     const handleSaveBulkStock = async () => {
         const productIds = Object.keys(selectedProducts);
         if (productIds.length === 0) {
-            alert("Please select at least one product to add stock.");
+            toast.error("Select at least one product");
             return;
         }
 
@@ -209,11 +205,11 @@ export default function BulkAddStock() {
             // Update catalog version for cache busting
             await updateCatalogVersion();
             
-            alert(`Successfully added stock to ${productIds.length} products!`);
+            toast.success(`Stock added to ${productIds.length} products`);
             router.push(`/dashboard/stock-management/${productType}`);
         } catch (error) {
             console.error("Error updating bulk stock: ", error);
-            alert("Failed to update all stocks.");
+            toast.error("Some stock updates could not be completed");
         } finally {
             setSaving(false);
         }
@@ -223,15 +219,8 @@ export default function BulkAddStock() {
     const selectedCount = Object.keys(selectedProducts).length;
 
     return (
-        <SidebarProvider
-            style={{
-                "--sidebar-width": "calc(var(--spacing) * 72)",
-                "--header-height": "calc(var(--spacing) * 12)"
-            }}>
-            <AppSidebar variant="inset" />
-            <SidebarInset>
-                <SiteHeader />
-                <div className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8 max-w-[1400px] mx-auto w-full">
+        <>
+                <div className="dashboard-page dashboard-page-wide">
                     <div className="flex items-center gap-4">
                         <Link href={`/dashboard/stock-management/${productType}`}>
                             <Button variant="outline" size="icon">
@@ -289,7 +278,7 @@ export default function BulkAddStock() {
                                             No products found matching your search.
                                         </div>
                                     ) : (
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4 max-h-[600px] overflow-y-auto min-h-[400px] content-start">
+                                        <div className="dashboard-scroll-area grid min-h-[400px] max-h-[600px] grid-cols-1 content-start gap-4 overflow-y-auto p-4 sm:grid-cols-2 lg:grid-cols-3">
                                             {flattenedProducts.map(productRow => {
                                                 const isSelected = !!selectedProducts[productRow.rowId];
                                                 const currentStock = productRow.stockCount !== undefined ? productRow.stockCount : 0;
@@ -297,6 +286,15 @@ export default function BulkAddStock() {
                                                     <div
                                                         key={productRow.rowId}
                                                         onClick={() => toggleProductSelection(productRow)}
+                                                        onKeyDown={(event) => {
+                                                            if (event.key === "Enter" || event.key === " ") {
+                                                                event.preventDefault();
+                                                                toggleProductSelection(productRow);
+                                                            }
+                                                        }}
+                                                        role="checkbox"
+                                                        aria-checked={isSelected}
+                                                        tabIndex={0}
                                                         className={`relative flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all duration-200 ${isSelected ? 'border-primary bg-primary/5 shadow-md shadow-primary/5 ring-1 ring-primary/20 scale-[1.02]' : 'border-border hover:border-border/80 hover:bg-muted/30'} ${productRow.isVariation ? 'bg-muted/5' : ''}`}
                                                     >
                                                         <div className="absolute top-3 right-3 z-10">
@@ -313,6 +311,7 @@ export default function BulkAddStock() {
                                                                     src={productRow.images[0]}
                                                                     alt={productRow.name}
                                                                     fill
+                                                                    sizes="56px"
                                                                     className={`object-cover transition-transform ${isSelected ? 'scale-110' : ''}`}
                                                                 />
                                                             ) : (
@@ -338,9 +337,8 @@ export default function BulkAddStock() {
                         </div>
 
                         {/* Right Side: Execution Tray */}
-                        <div className="xl:col-span-1 sticky top-8">
-                            <Card className="border-0 shadow-lg relative overflow-hidden border-border h-[calc(100vh-140px)] flex flex-col">
-                                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5 opacity-50 pointer-events-none" />
+                        <div className="xl:sticky xl:top-24 xl:col-span-1">
+                            <Card className="relative flex max-h-[70vh] flex-col overflow-hidden xl:h-[calc(100vh-8rem)] xl:max-h-none">
 
                                 <CardHeader className="border-b bg-muted/20 relative z-10 pb-4 shrink-0">
                                     <CardTitle className="text-lg flex items-center justify-between">
@@ -354,7 +352,7 @@ export default function BulkAddStock() {
                                     </CardDescription>
                                 </CardHeader>
 
-                                <CardContent className="p-0 flex-1 overflow-y-auto relative z-10 bg-background/50 backdrop-blur-sm">
+                                <CardContent className="dashboard-scroll-area relative z-10 flex-1 overflow-y-auto bg-background/50 p-0">
                                     {selectedCount === 0 ? (
                                         <div className="h-full flex flex-col items-center justify-center text-muted-foreground p-8 text-center gap-3">
                                             <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center border border-border/50 border-dashed">
@@ -374,6 +372,7 @@ export default function BulkAddStock() {
                                                                     src={entry.productRow.images[0]}
                                                                     alt={entry.productRow.name}
                                                                     fill
+                                                                    sizes="40px"
                                                                     className="object-cover"
                                                                 />
                                                             ) : null}
@@ -404,7 +403,7 @@ export default function BulkAddStock() {
 
                                 <CardFooter className="p-4 border-t bg-muted/40 backdrop-blur-md relative z-10 shrink-0">
                                     <Button
-                                        className="w-full h-12 shadow-lg shadow-primary/20 text-md font-semibold hover:-translate-y-0.5 transition-all"
+                                        className="h-12 w-full font-semibold"
                                         onClick={handleSaveBulkStock}
                                         disabled={selectedCount === 0 || saving}
                                     >
@@ -422,7 +421,6 @@ export default function BulkAddStock() {
                         </div>
                     </div>
                 </div>
-            </SidebarInset>
-        </SidebarProvider>
+            </>
     );
 }

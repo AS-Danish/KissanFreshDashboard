@@ -1,29 +1,25 @@
 "use client"
 
-import * as React from "react"
+import Link from "next/link"
 import {
-  IconCamera,
-  IconChartBar,
+  IconBell,
+  IconCalendarTime,
+  IconClipboardList,
   IconDashboard,
   IconDatabase,
-  IconFileAi,
-  IconFileDescription,
-  IconFileWord,
-  IconFolder,
-  IconHelp,
-  IconInnerShadowTop,
+  IconFolders,
+  IconLeaf,
   IconListDetails,
-  IconReport,
-  IconSearch,
+  IconPalette,
+  IconReportAnalytics,
   IconSettings,
+  IconShoppingBag,
+  IconTags,
   IconUsers,
-  IconCalendarTime,
-  IconBell,
 } from "@tabler/icons-react"
 
 import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
-import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
 import { useAppStore } from "@/store/useAppStore"
 import {
@@ -36,225 +32,123 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-const staticData = {
-  user: {
-    name: "Admin",
-    email: "admin@example.com",
-    avatar: "/avatars/shadcn.jpg",
+const navigationGroups = [
+  {
+    label: "Overview",
+    items: [
+      { title: "Dashboard", url: "/dashboard", icon: IconDashboard },
+    ],
   },
-  navMain: [
-    {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: IconDashboard,
-    },
-    {
-      title: "Product Management",
-      url: "/dashboard/product-management",
-      icon: IconFolder,
-      items: [
-        {
-          title: "Kissan Fresh Products",
-          url: "/dashboard/product-management/kissan-fresh",
-        },
-        {
-          title: "Home Food Products",
-          url: "/dashboard/product-management/home-food",
-        },
-        {
-          title: "Today's Special",
-          url: "/dashboard/product-management/todays-special",
-        },
-      ]
-    },
-    {
-      title: "Stock Management",
-      url: "/dashboard/stock-management",
-      icon: IconDatabase,
-      items: [
-        {
-          title: "Kissan Fresh Stock",
-          url: "/dashboard/stock-management/kissan-fresh",
-        },
-        {
-          title: "Home Food Stock",
-          url: "/dashboard/stock-management/home-food",
-        },
-      ]
-    },
-    {
-      title: "Order Management",
-      url: "/dashboard/order-management",
-      icon: IconListDetails,
-    },
-    {
-      title: "Rider Management",
-      url: "/dashboard/rider-management",
-      icon: IconUsers,
-    },
-    {
-      title: "Slot Management",
-      url: "/dashboard/slots-management",
-      icon: IconCalendarTime,
-    },
-    {
-      title: "Manage Categories",
-      url: "/dashboard/category-management",
-      icon: IconListDetails,
-    },
-    {
-      title: "Offers Notification",
-      url: "/dashboard/offers",
-      icon: IconBell,
-    },
-    {
-      title: "Coupon Management",
-      url: "/dashboard/coupon-management",
-      icon: IconReport,
-      items: [
-        {
-          title: "Kissan Fresh Coupons",
-          url: "/dashboard/coupon-management/kissan-fresh",
-        },
-        {
-          title: "Home Food Coupons",
-          url: "/dashboard/coupon-management/home-food",
-        },
-      ]
-    },
-    {
-      title: "Theme Management",
-      url: "/dashboard/theme-management",
-      icon: IconCamera,
-    },
-    {
-      title: "User Management",
-      url: "/dashboard/user-management",
-      icon: IconUsers,
-      adminOnly: true,
-    },
-  ],
-  navClouds: [
-    {
-      title: "Capture",
-      icon: IconCamera,
-      isActive: true,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Proposal",
-      icon: IconFileDescription,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Prompts",
-      icon: IconFileAi,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-  ],
-  navSecondary: [
-    {
-      title: "Settings",
-      url: "/dashboard/settings",
-      icon: IconSettings,
-    },
-  ],
-  documents: [
-    {
-      name: "Sales Report",
-      url: "/dashboard/reports/sales",
-      icon: IconReport,
-    },
-    {
-      name: "Audit Logs",
-      url: "/dashboard/reports/audit",
-      icon: IconListDetails,
-    },
-  ],
-}
+  {
+    label: "Commerce",
+    items: [
+      {
+        title: "Product Management",
+        url: "/dashboard/product-management",
+        icon: IconShoppingBag,
+        items: [
+          { title: "Kissan Fresh", url: "/dashboard/product-management/kissan-fresh" },
+          { title: "Home Food", url: "/dashboard/product-management/home-food" },
+          { title: "Today's Special", url: "/dashboard/product-management/todays-special" },
+        ],
+      },
+      {
+        title: "Stock Management",
+        url: "/dashboard/stock-management",
+        icon: IconDatabase,
+        items: [
+          { title: "Kissan Fresh", url: "/dashboard/stock-management/kissan-fresh" },
+          { title: "Home Food", url: "/dashboard/stock-management/home-food" },
+        ],
+      },
+      { title: "Categories", permission: "Manage Categories", url: "/dashboard/category-management", icon: IconFolders },
+      {
+        title: "Coupons",
+        permission: "Coupon Management",
+        url: "/dashboard/coupon-management",
+        icon: IconTags,
+        items: [
+          { title: "Kissan Fresh", url: "/dashboard/coupon-management/kissan-fresh" },
+          { title: "Home Food", url: "/dashboard/coupon-management/home-food" },
+        ],
+      },
+    ],
+  },
+  {
+    label: "Operations",
+    items: [
+      { title: "Order Management", url: "/dashboard/order-management", icon: IconClipboardList },
+      { title: "Rider Management", url: "/dashboard/rider-management", icon: IconUsers },
+      { title: "Slot Management", url: "/dashboard/slots-management", icon: IconCalendarTime },
+      { title: "Offer Notifications", permission: "Offers Notification", url: "/dashboard/offers", icon: IconBell },
+    ],
+  },
+  {
+    label: "Experience",
+    items: [
+      { title: "Theme Management", url: "/dashboard/theme-management", icon: IconPalette },
+      { title: "Settings", url: "/dashboard/settings", icon: IconSettings },
+    ],
+  },
+  {
+    label: "Administration",
+    items: [
+      { title: "User Management", url: "/dashboard/user-management", icon: IconUsers, adminOnly: true },
+    ],
+  },
+]
 
-export function AppSidebar({
-  ...props
-}) {
-  const { user, userRole, userPermissions } = useAppStore();
+const reports = [
+  { name: "Sales Report", url: "/dashboard/reports/sales", icon: IconReportAnalytics },
+  { name: "Audit Logs", url: "/dashboard/reports/audit", icon: IconListDetails },
+]
 
-  const isManagement = userRole === "MANAGEMENT";
+export function AppSidebar(props) {
+  const { userRole, userPermissions } = useAppStore()
+  const isManagement = userRole === "MANAGEMENT"
 
-  // Filter navigation based on permissions
-  const filteredNavMain = staticData.navMain.filter((item) => {
-    if (item.adminOnly && userRole !== "ADMIN") return false;
-    if (item.title === "Dashboard") return true; // Always show dashboard
-    if (isManagement) {
-      return !!userPermissions?.[item.title];
-    }
-    return true; // Admin sees everything
-  });
+  const canAccess = (item) => {
+    if (item.adminOnly) return userRole === "ADMIN"
+    if (!isManagement || item.title === "Dashboard") return true
+    return Boolean(userPermissions?.[item.permission || item.title])
+  }
 
-  const filteredDocuments = staticData.documents.filter((item) => {
-    if (isManagement) {
-      return !!userPermissions?.[item.name];
-    }
-    return true;
-  });
+  const visibleGroups = navigationGroups
+    .map((group) => ({ ...group, items: group.items.filter(canAccess) }))
+    .filter((group) => group.items.length > 0)
 
-  const userData = {
-    name: user?.displayName || userRole || "Admin",
-    email: user?.email || "",
-    avatar: staticData.user.avatar,
-  };
+  const visibleReports = reports.filter((item) =>
+    !isManagement || Boolean(userPermissions?.[item.name]),
+  )
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
-      <SidebarHeader>
+      <SidebarHeader className="border-b border-sidebar-border px-3 py-3">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:!p-1.5">
-              <a href="/">
-                <IconInnerShadowTop className="!size-5" />
-                <span className="text-base font-semibold">Kissan Fresh</span>
-              </a>
+            <SidebarMenuButton asChild size="lg" className="h-12 px-2 hover:bg-sidebar-accent">
+              <Link href="/dashboard" aria-label="Kissan Fresh dashboard home">
+                <span className="flex size-9 items-center justify-center rounded-xl bg-white text-[#176b4f] shadow-sm">
+                  <IconLeaf className="size-5" stroke={2.2} />
+                </span>
+                <span className="grid flex-1 text-left leading-tight">
+                  <span className="truncate text-[15px] font-bold tracking-tight">Kissan Fresh</span>
+                  <span className="truncate text-[11px] text-sidebar-foreground/60">Commerce operations</span>
+                </span>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-      <SidebarContent>
-        <NavMain items={filteredNavMain} />
-        <NavDocuments items={filteredDocuments} />
-        <NavSecondary items={staticData.navSecondary} className="mt-auto" />
+      <SidebarContent className="gap-0 px-2 py-2">
+        {visibleGroups.map((group) => (
+          <NavMain key={group.label} label={group.label} items={group.items} />
+        ))}
+        {visibleReports.length > 0 && <NavDocuments items={visibleReports} />}
       </SidebarContent>
-      <SidebarFooter>
-        <NavUser user={userData} />
+      <SidebarFooter className="border-t border-sidebar-border p-3">
+        <NavUser />
       </SidebarFooter>
     </Sidebar>
-  );
+  )
 }

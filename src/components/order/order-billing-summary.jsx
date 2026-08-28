@@ -3,31 +3,33 @@ import { Button } from "@/components/ui/button"
 import { IconDownload } from "@tabler/icons-react"
 
 export function OrderBillingSummary({ subtotal, deliveryFee, discount, couponDiscount, totalAmount, hideDownloadButton, onDownloadInvoice }) {
-    const totalDiscount = (discount || 0) + (couponDiscount || 0);
+    const amount = (value) => Number(value || 0);
+    const money = (value) => amount(value).toFixed(2);
+    const totalDiscount = amount(discount) + amount(couponDiscount);
     
     return (
         <div className="bg-muted p-6 rounded-2xl border flex flex-col items-end gap-5 ml-auto w-full sm:w-[350px]">
             <div className="w-full space-y-2">
                 <div className="flex justify-between items-center text-sm">
                     <span className="text-muted-foreground font-medium">Subtotal</span>
-                    <span className="font-semibold">₹{subtotal?.toFixed(2) || "0.00"}</span>
+                    <span className="font-semibold">₹{money(subtotal)}</span>
                 </div>
-                {deliveryFee > 0 && (
+                {amount(deliveryFee) > 0 && (
                     <div className="flex justify-between items-center text-sm">
                         <span className="text-muted-foreground font-medium">Delivery Fee</span>
-                        <span className="font-semibold">₹{deliveryFee.toFixed(2)}</span>
+                        <span className="font-semibold">₹{money(deliveryFee)}</span>
                     </div>
                 )}
                 {totalDiscount > 0 && (
                     <div className="flex justify-between items-center text-sm text-secondary">
                         <span className="font-medium">Discount</span>
-                        <span className="font-semibold">-₹{totalDiscount.toFixed(2)}</span>
+                        <span className="font-semibold">-₹{money(totalDiscount)}</span>
                     </div>
                 )}
                 <Separator className="my-2" />
                 <div className="flex justify-between items-center">
                     <span className="text-base font-bold text-foreground">Total Amount</span>
-                    <span className="text-2xl font-bold text-primary">₹{totalAmount?.toFixed(2) || "0.00"}</span>
+                    <span className="text-2xl font-bold text-primary">₹{money(totalAmount)}</span>
                 </div>
             </div>
             {!hideDownloadButton && (

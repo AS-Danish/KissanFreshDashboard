@@ -11,9 +11,6 @@ import { useRef } from "react"
 import { logAdminAction } from "@/services/loggerService"
 import { useReactToPrint } from "react-to-print"
 
-import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
@@ -85,7 +82,14 @@ export default function OrderDetailsPage() {
     const [isAssigning, setIsAssigning] = useState(false)
 
     const contentRef = useRef(null)
+    const copyTimerRef = useRef(null)
     const handleDownloadInvoice = useReactToPrint({ contentRef })
+
+    useEffect(() => {
+        return () => {
+            if (copyTimerRef.current) clearTimeout(copyTimerRef.current)
+        }
+    }, [])
 
     useEffect(() => {
         // Fetch global riders map for reference
@@ -235,30 +239,28 @@ export default function OrderDetailsPage() {
         }
     }
 
-    const copyToClipboard = (text) => {
-        navigator.clipboard.writeText(text)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
-        toast.info("Copied to clipboard")
+    const copyToClipboard = async (text) => {
+        try {
+            await navigator.clipboard.writeText(text)
+            setCopied(true)
+            if (copyTimerRef.current) clearTimeout(copyTimerRef.current)
+            copyTimerRef.current = setTimeout(() => setCopied(false), 2000)
+            toast.success("Order ID copied")
+        } catch {
+            toast.error("Could not copy the order ID")
+        }
     }
 
 
 
     if (loading) {
         return (
-            <SidebarProvider
-                style={{
-                    "--sidebar-width": "calc(var(--spacing) * 72)",
-                    "--header-height": "calc(var(--spacing) * 12)"
-                }}>
-                <AppSidebar variant="inset" />
-                <SidebarInset className="bg-background">
-                    <SiteHeader />
-                    <div className="flex flex-1 items-center justify-center p-10">
+            <>
+                    <div className="dashboard-loading" role="status" aria-live="polite">
                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                        <span className="sr-only">Loading order details</span>
                     </div>
-                </SidebarInset>
-            </SidebarProvider>
+                </>
         )
     }
 
@@ -267,29 +269,22 @@ export default function OrderDetailsPage() {
     const isLogisticsChanged = order.slotId !== selectedSlot || order.riderId !== selectedRider;
 
     return (
-        <SidebarProvider
-            style={{
-                "--sidebar-width": "calc(var(--spacing) * 72)",
-                "--header-height": "calc(var(--spacing) * 12)"
-            }}>
-            <AppSidebar variant="inset" />
-            <SidebarInset className="bg-background">
-                <SiteHeader />
-                <div className="flex flex-1 flex-col gap-8 p-6 md:p-10 max-w-7xl mx-auto w-full">
+        <>
+                <div className="dashboard-page dashboard-page-wide">
                     
                     {/* Header Actions */}
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <Button variant="ghost" onClick={() => router.back()} className="flex items-center gap-2">
                             <IconArrowLeft className="h-4 w-4" />
                             Back to Orders
                         </Button>
-                        <Button onClick={handleDownloadInvoice} className="flex items-center gap-2 rounded-xl shadow-md">
+                        <Button onClick={handleDownloadInvoice} className="flex items-center gap-2 sm:w-auto">
                             <IconDownload className="h-4 w-4" />
                             Download Invoice
                         </Button>
                     </div>
 
-                    <div id="invoice-content" className="bg-card border rounded-2xl shadow-sm overflow-hidden p-8 flex flex-col gap-8">
+                    <div id="invoice-content" className="flex flex-col gap-6 overflow-hidden rounded-2xl border bg-card p-4 shadow-sm sm:p-6 lg:gap-8 lg:p-8">
                         {/* Invoice Header */}
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 border-b pb-6">
                             <div className="flex items-center gap-5">
@@ -311,7 +306,7 @@ export default function OrderDetailsPage() {
                                     </div>
                                 </div>
                             </div>
-                            <div className="flex flex-col items-end gap-2">
+                            <div className="flex flex-col items-start gap-2 sm:items-end">
                                 <Badge variant="outline" className={`${getStatusColor(order.status)} px-4 py-1.5 flex items-center gap-2 text-xs font-bold uppercase tracking-wider rounded-lg`}>
                                     {getStatusIcon(order.status)}
                                     {order.status?.toUpperCase()}
@@ -324,19 +319,19 @@ export default function OrderDetailsPage() {
 
                         {/* Delivery Instructions */}
                         {order.deliveryInstruction && (
-                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 shadow-sm flex items-start gap-4 html2pdf-ignore animate-in fade-in slide-in-from-bottom-2">
+                            <div className="html2pdf-ignore flex items-start gap-4 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30 sm:p-5">
                                 <div className="p-3 bg-amber-100 text-amber-800 rounded-lg shadow-sm">
                                     <IconClipboard className="h-6 w-6" />
                                 </div>
                                 <div>
-                                    <h3 className="text-sm font-bold text-amber-900 uppercase tracking-widest mb-1">Delivery Instructions</h3>
-                                    <p className="text-amber-800 font-medium whitespace-pre-wrap">{order.deliveryInstruction}</p>
+                                    <h3 className="mb-1 text-sm font-semibold text-amber-900 dark:text-amber-200">Delivery instructions</h3>
+                                    <p className="whitespace-pre-wrap text-sm font-medium text-amber-800 dark:text-amber-300">{order.deliveryInstruction}</p>
                                 </div>
                             </div>
                         )}
 
                         {/* Status & Logistics */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 html2pdf-ignore">
+                        <div className="html2pdf-ignore grid grid-cols-1 gap-5 xl:grid-cols-2">
                             <OrderStatusCard 
                                 status={order.status} 
                                 updating={updating} 
@@ -358,7 +353,7 @@ export default function OrderDetailsPage() {
                         </div>
 
                         {/* Customer & Financial */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
                             <OrderCustomerCard 
                                 userName={userName}
                                 userPhone={userPhone}
@@ -367,7 +362,7 @@ export default function OrderDetailsPage() {
                             />
 
                             <OrderFinancialSummary 
-                                itemsCount={order.items?.reduce((acc, item) => acc + item.quantity, 0)}
+                                itemsCount={order.items?.reduce((acc, item) => acc + Number(item.quantity || 0), 0)}
                                 paymentMethod={order.orderType || order.paymentMethod}
                             />
                         </div>
@@ -376,7 +371,6 @@ export default function OrderDetailsPage() {
 
                         {/* Items */}
                         <div className="w-full">
-                            <h3 className="text-xl font-semibold mb-4 text-foreground">Order Items</h3>
                             <OrderItemsTable items={order.items} />
                         </div>
 
@@ -398,7 +392,6 @@ export default function OrderDetailsPage() {
                         <InvoiceTemplate ref={contentRef} order={order} userName={userName} />
                     </div>
                 </div>
-            </SidebarInset>
-        </SidebarProvider>
+            </>
     )
 }

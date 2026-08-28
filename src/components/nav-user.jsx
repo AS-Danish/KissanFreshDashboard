@@ -47,12 +47,15 @@ export function NavUser() {
   })
 
   useEffect(() => {
+    let active = true
+
     const fetchUserData = async () => {
       if (user?.uid) {
         try {
           const userDocRef = doc(db, "users", user.uid)
           const userDocSnap = await getDoc(userDocRef)
 
+          if (!active) return
           if (userDocSnap.exists()) {
             const data = userDocSnap.data()
             setUserData({
@@ -75,6 +78,9 @@ export function NavUser() {
     }
 
     fetchUserData()
+    return () => {
+      active = false
+    }
   }, [user])
 
   const handleLogout = async () => {

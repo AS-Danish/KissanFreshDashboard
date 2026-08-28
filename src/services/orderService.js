@@ -166,21 +166,20 @@ export const getOrderStats = async () => {
   try {
     const ordersRef = collection(db, ORDERS_COLLECTION);
     
-    const totalSnap = await getCountFromServer(ordersRef);
-    const totalOrders = totalSnap.data().count;
-
     const assignedQuery = query(ordersRef, where("status", "==", "ASSIGNED"));
-    const assignedSnap = await getCountFromServer(assignedQuery);
-    const assignedOrders = assignedSnap.data().count;
-
     const deliveredQuery = query(ordersRef, where("status", "==", "DELIVERED"));
-    const deliveredSnap = await getCountFromServer(deliveredQuery);
-    const deliveredOrders = deliveredSnap.data().count;
-
     const outForDeliveryQuery = query(ordersRef, where("status", "==", "OUT FOR DELIVERY"));
-    const outForDeliverySnap = await getCountFromServer(outForDeliveryQuery);
     const shippedQuery = query(ordersRef, where("status", "==", "SHIPPED"));
-    const shippedSnap = await getCountFromServer(shippedQuery);
+    const [totalSnap, assignedSnap, deliveredSnap, outForDeliverySnap, shippedSnap] = await Promise.all([
+      getCountFromServer(ordersRef),
+      getCountFromServer(assignedQuery),
+      getCountFromServer(deliveredQuery),
+      getCountFromServer(outForDeliveryQuery),
+      getCountFromServer(shippedQuery),
+    ]);
+    const totalOrders = totalSnap.data().count;
+    const assignedOrders = assignedSnap.data().count;
+    const deliveredOrders = deliveredSnap.data().count;
     const shippedOrders = outForDeliverySnap.data().count + shippedSnap.data().count;
 
     let grossRevenue = 0;
@@ -190,22 +189,8 @@ export const getOrderStats = async () => {
         });
         grossRevenue = revenueSnap.data().totalRevenue || 0;
         
-        if (grossRevenue === 0) {
-             const allDocs = await getDocs(ordersRef);
-             let total = 0;
-             allDocs.forEach(d => {
-                 total += Number(d.data().totalAmount) || 0;
-             });
-             grossRevenue = total;
-         }
     } catch (e) {
         console.warn("Aggregate sum failed:", e);
-        const allDocs = await getDocs(ordersRef);
-        let total = 0;
-        allDocs.forEach(d => {
-             total += Number(d.data().totalAmount) || 0;
-        });
-        grossRevenue = total;
     }
 
     return {

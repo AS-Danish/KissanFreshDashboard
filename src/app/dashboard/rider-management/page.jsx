@@ -3,12 +3,6 @@
 import { useState, useMemo, useEffect } from "react"
 import { db } from "@/firebase/config"
 import { collection, onSnapshot, query, orderBy, doc, updateDoc, addDoc, deleteDoc } from "firebase/firestore"
-import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
-import {
-    SidebarInset,
-    SidebarProvider,
-} from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -292,15 +286,8 @@ export default function RiderManagement() {
     };
 
     return (
-        <SidebarProvider
-            style={{
-                "--sidebar-width": "calc(var(--spacing) * 72)",
-                "--header-height": "calc(var(--spacing) * 12)"
-            }}>
-            <AppSidebar variant="inset" />
-            <SidebarInset className="bg-background">
-                <SiteHeader />
-                <div className="flex flex-1 flex-col gap-8 p-6 md:p-10">
+        <>
+                <div className="dashboard-page dashboard-page-wide">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <h2 className="text-2xl font-bold tracking-tight text-foreground uppercase">
                             Rider Management
@@ -655,7 +642,6 @@ export default function RiderManagement() {
                     </AlertDialog>
 
                 </div>
-            </SidebarInset>
-        </SidebarProvider>
+            </>
     );
 }

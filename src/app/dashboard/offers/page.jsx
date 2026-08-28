@@ -13,12 +13,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 import { IconLoader2, IconPhotoPlus } from "@tabler/icons-react"
-import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
-import {
-    SidebarInset,
-    SidebarProvider,
-} from "@/components/ui/sidebar"
 
 export default function OffersNotificationPage() {
   const [title, setTitle] = useState("")
@@ -106,15 +100,8 @@ export default function OffersNotificationPage() {
   }
 
   return (
-    <SidebarProvider
-      style={{
-          "--sidebar-width": "calc(var(--spacing) * 72)",
-          "--header-height": "calc(var(--spacing) * 12)"
-      }}>
-      <AppSidebar variant="inset" />
-      <SidebarInset>
-        <SiteHeader />
-        <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8 max-w-4xl mx-auto w-full animate-in fade-in duration-500">
+    <>
+        <div className="dashboard-page dashboard-page-narrow">
           <div className="flex flex-col space-y-2">
             <h1 className="text-3xl font-bold tracking-tight">Offer Notifications</h1>
             <p className="text-muted-foreground">
@@ -257,7 +244,6 @@ export default function OffersNotificationPage() {
             </form>
           </Card>
         </div>
-      </SidebarInset>
-    </SidebarProvider>
+      </>
   )
 }

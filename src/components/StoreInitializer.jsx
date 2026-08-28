@@ -6,21 +6,19 @@ import { Toaster } from "sonner";
 
 export function StoreInitializer({ children }) {
   const initAuth = useAppStore((state) => state.initAuth);
-  const fetchCategoriesAndSections = useAppStore((state) => state.fetchCategoriesAndSections);
 
   useEffect(() => {
     const unsubscribeAuth = initAuth();
-    fetchCategoriesAndSections();
 
     return () => {
       if (unsubscribeAuth) unsubscribeAuth();
     };
-  }, [initAuth, fetchCategoriesAndSections]);
+  }, [initAuth]);
 
   return (
     <>
       {children}
-      <Toaster position="top-center" richColors />
+      <Toaster position="top-right" richColors closeButton visibleToasts={4} />
     </>
   );
 }

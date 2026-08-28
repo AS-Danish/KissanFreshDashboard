@@ -5,12 +5,6 @@ import { useEffect, useState } from "react"
 import { doc, getDoc, updateDoc } from "firebase/firestore"
 import { db } from "@/firebase/config"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
-import {
-    SidebarInset,
-    SidebarProvider,
-} from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -96,15 +90,8 @@ export default function ProfilePage() {
   }
 
   return (
-    <SidebarProvider
-      style={{
-          "--sidebar-width": "calc(var(--spacing) * 72)",
-          "--header-height": "calc(var(--spacing) * 12)"
-      }}>
-      <AppSidebar variant="inset" />
-      <SidebarInset>
-        <SiteHeader />
-        <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8 max-w-4xl mx-auto w-full animate-in fade-in duration-500">
+    <>
+        <div className="dashboard-page dashboard-page-narrow">
           <div className="flex flex-col gap-1">
               <h1 className="text-3xl font-bold tracking-tight">Profile</h1>
               <p className="text-muted-foreground">Manage your personal information and account details.</p>
@@ -184,7 +171,6 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
-      </SidebarInset>
-    </SidebarProvider>
+      </>
   )
 }

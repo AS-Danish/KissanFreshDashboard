@@ -4,9 +4,6 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { AppSidebar } from "@/components/app-sidebar";
-import { SiteHeader } from "@/components/site-header";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,6 +12,8 @@ import { IconArrowLeft, IconEdit, IconTrash, IconChevronLeft, IconChevronRight }
 import { db } from "@/firebase/config";
 import { doc, getDoc, deleteDoc } from "firebase/firestore";
 import { updateCatalogVersion } from "@/services/appConfigService";
+import { ConfirmDeleteDialog } from "@/components/dashboard/confirm-delete-dialog";
+import { toast } from "sonner";
 
 export default function ProductDetailPage() {
     const params = useParams();
@@ -35,7 +34,7 @@ export default function ProductDetailPage() {
                 if (docSnap.exists()) {
                     setProduct({ id: docSnap.id, ...docSnap.data() });
                 } else {
-                    alert("Product not found");
+                    toast.error("Product not found");
                     router.push(`/dashboard/product-management/${productType}`);
                 }
             } catch (error) {
@@ -48,19 +47,15 @@ export default function ProductDetailPage() {
     }, [productId, router]);
 
     const handleDelete = async () => {
-        if (window.confirm("Are you sure you want to delete this product?")) {
-            try {
-                await deleteDoc(doc(db, "products", productId));
-                
-                // Update catalog version for cache busting
-                await updateCatalogVersion();
-                
-                alert("Product deleted successfully.");
-                router.push(`/dashboard/product-management/${productType}`);
-            } catch (error) {
-                console.error("Error deleting document: ", error);
-                alert("Failed to delete product.");
-            }
+        try {
+            await deleteDoc(doc(db, "products", productId));
+            await updateCatalogVersion();
+            toast.success("Product deleted");
+            router.push(`/dashboard/product-management/${productType}`);
+        } catch (error) {
+            console.error("Error deleting document: ", error);
+            toast.error("Failed to delete product");
+            throw error;
         }
     };
 
@@ -77,16 +72,8 @@ export default function ProductDetailPage() {
     };
 
     return (
-        <SidebarProvider
-            style={{
-                "--sidebar-width": "calc(var(--spacing) * 72)",
-                "--header-height": "calc(var(--spacing) * 12)",
-            }}
-        >
-            <AppSidebar variant="inset" />
-            <SidebarInset>
-                <SiteHeader />
-                <div className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8 max-w-6xl mx-auto w-full">
+        <>
+                <div className="dashboard-page">
                     <div className="flex items-center justify-between gap-4">
                         <div className="flex items-center gap-4">
                             <Link href={`/dashboard/product-management/${productType}`}>
@@ -106,9 +93,15 @@ export default function ProductDetailPage() {
                                         <IconEdit className="h-4 w-4 text-primary" /> Edit
                                     </Button>
                                 </Link>
-                                <Button variant="destructive" className="gap-2" onClick={handleDelete}>
-                                    <IconTrash className="h-4 w-4" /> Delete
-                                </Button>
+                                <ConfirmDeleteDialog
+                                    title="Delete product?"
+                                    description={`This permanently removes ${product.name} from the catalogue. This action cannot be undone.`}
+                                    onConfirm={handleDelete}
+                                >
+                                    <Button variant="destructive" className="gap-2">
+                                        <IconTrash className="h-4 w-4" /> Delete
+                                    </Button>
+                                </ConfirmDeleteDialog>
                             </div>
                         )}
                     </div>
@@ -131,6 +124,7 @@ export default function ProductDetailPage() {
                                                     src={product.images[currentImageIndex]}
                                                     alt={`${product.name} - Image ${currentImageIndex + 1}`}
                                                     fill
+                                                    sizes="(max-width: 768px) 100vw, 50vw"
                                                     className="object-contain p-4"
                                                     priority
                                                 />
@@ -176,7 +170,7 @@ export default function ProductDetailPage() {
                                                 onClick={() => setCurrentImageIndex(idx)}
                                                 className={`relative h-20 w-20 flex-shrink-0 rounded-md overflow-hidden border-2 transition-all ${idx === currentImageIndex ? 'border-primary ring-2 ring-primary/20' : 'border-transparent opacity-70 hover:opacity-100'}`}
                                             >
-                                                <Image src={img} alt="thumbnail" fill className="object-cover" />
+                                                <Image src={img} alt="thumbnail" fill sizes="80px" className="object-cover" />
                                             </button>
                                         ))}
                                     </div>
@@ -229,7 +223,6 @@ export default function ProductDetailPage() {
                         </div>
                     ) : null}
                 </div>
-            </SidebarInset>
-        </SidebarProvider>
+            </>
     );
 }

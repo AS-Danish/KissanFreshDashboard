@@ -60,3 +60,213 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  /* Dashboard-only design system. Landing pages intentionally remain untouched. */
+  .dashboard-shell {
+    --background: #f5f7f8;
+    --foreground: #17211d;
+    --card: #ffffff;
+    --card-foreground: #17211d;
+    --popover: #ffffff;
+    --popover-foreground: #17211d;
+    --primary: #176b4f;
+    --primary-foreground: #ffffff;
+    --secondary: #e8f3ee;
+    --secondary-foreground: #15543f;
+    --muted: #edf1ef;
+    --muted-foreground: #63716a;
+    --accent: #e4f2eb;
+    --accent-foreground: #134d3b;
+    --border: #dde5e1;
+    --input: #d4ddd8;
+    --ring: #2b8062;
+    --sidebar: #103d31;
+    --sidebar-foreground: #eaf5f0;
+    --sidebar-primary: #ffffff;
+    --sidebar-primary-foreground: #103d31;
+    --sidebar-accent: rgba(255, 255, 255, 0.1);
+    --sidebar-accent-foreground: #ffffff;
+    --sidebar-border: rgba(255, 255, 255, 0.1);
+    --sidebar-ring: #83c8ae;
+    min-height: 100svh;
+    background:
+      radial-gradient(circle at 78% -10%, rgba(33, 128, 92, 0.09), transparent 28rem),
+      var(--background);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  .dark .dashboard-shell {
+    --background: #0b1210;
+    --foreground: #ecf4f0;
+    --card: #111b17;
+    --card-foreground: #ecf4f0;
+    --popover: #111b17;
+    --popover-foreground: #ecf4f0;
+    --primary: #62c39d;
+    --primary-foreground: #07140f;
+    --secondary: #183329;
+    --secondary-foreground: #dff5ec;
+    --muted: #18231f;
+    --muted-foreground: #98aaa2;
+    --accent: #19372c;
+    --accent-foreground: #e5f7ef;
+    --border: #26342e;
+    --input: #34433d;
+    --ring: #62c39d;
+    --sidebar: #091c16;
+    --sidebar-foreground: #e5f5ee;
+    --sidebar-accent: rgba(255, 255, 255, 0.08);
+    --sidebar-accent-foreground: #ffffff;
+    --sidebar-border: rgba(255, 255, 255, 0.08);
+  }
+
+  .dashboard-main {
+    min-width: 0;
+    background: transparent;
+  }
+
+  /* Keep sidebar wheel/touch/keyboard scrolling without the intrusive native rail. */
+  .dashboard-shell [data-slot="sidebar-content"] {
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .dashboard-shell [data-slot="sidebar-content"]::-webkit-scrollbar {
+    display: none;
+  }
+
+  .dashboard-scroll-area {
+    scrollbar-color: color-mix(in oklab, var(--muted-foreground) 35%, transparent) transparent;
+    scrollbar-width: thin;
+  }
+
+  .dashboard-scroll-area::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
+  }
+
+  .dashboard-scroll-area::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--muted-foreground) 32%, transparent);
+  }
+
+  .dashboard-content {
+    min-width: 0;
+    flex: 1;
+    overflow-x: clip;
+  }
+
+  .dashboard-page {
+    display: flex;
+    width: 100%;
+    max-width: 90rem;
+    flex: 1;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-inline: auto;
+    padding: 1rem;
+    animation: dashboard-page-enter 240ms ease-out both;
+  }
+
+  .dashboard-page-narrow {
+    max-width: 64rem;
+  }
+
+  .dashboard-page-wide {
+    max-width: 100rem;
+  }
+
+  .dashboard-loading {
+    display: grid;
+    min-height: 18rem;
+    place-items: center;
+    color: var(--muted-foreground);
+    font-size: 0.875rem;
+  }
+
+  .dashboard-page > :first-child h1,
+  .dashboard-page > :first-child h2,
+  .dashboard-page > :first-child > div h1,
+  .dashboard-page > :first-child > div h2 {
+    color: var(--foreground);
+    font-size: clamp(1.35rem, 1.05rem + 0.8vw, 1.8rem);
+    font-weight: 750;
+    letter-spacing: -0.025em;
+    line-height: 1.2;
+    text-transform: none;
+  }
+
+  .dashboard-page > :first-child p {
+    color: var(--muted-foreground);
+    line-height: 1.5;
+  }
+
+  @media (min-width: 768px) {
+    .dashboard-page {
+      gap: 1.75rem;
+      padding: 1.75rem 2rem 2.25rem;
+    }
+  }
+
+  @keyframes dashboard-page-enter {
+    from { opacity: 0; transform: translateY(3px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .dashboard-shell [data-slot="card"] {
+    border-color: color-mix(in oklab, var(--border) 88%, transparent);
+    border-radius: 0.875rem;
+    box-shadow: 0 1px 2px rgba(16, 61, 49, 0.04), 0 8px 28px rgba(16, 61, 49, 0.045);
+  }
+
+  .dashboard-shell [data-slot="input"],
+  .dashboard-shell [data-slot="textarea"],
+  .dashboard-shell [data-slot="select-trigger"] {
+    border-color: var(--input);
+    background: color-mix(in oklab, var(--card) 94%, transparent);
+    box-shadow: 0 1px 2px rgba(16, 61, 49, 0.025);
+  }
+
+  .dashboard-shell [data-slot="table-header"] {
+    background: color-mix(in oklab, var(--muted) 72%, transparent);
+  }
+
+  .dashboard-shell [data-slot="table-head"] {
+    color: var(--muted-foreground);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.045em;
+    text-transform: uppercase;
+  }
+
+  .dashboard-shell [data-slot="table-row"] {
+    transition: background-color 150ms ease;
+  }
+
+  .dashboard-shell [data-slot="table-body"] [data-slot="table-row"]:hover {
+    background: color-mix(in oklab, var(--accent) 42%, transparent);
+  }
+
+  .dashboard-shell button,
+  .dashboard-shell a {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .dashboard-shell :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dashboard-shell *,
+    .dashboard-shell *::before,
+    .dashboard-shell *::after {
+      scroll-behavior: auto !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

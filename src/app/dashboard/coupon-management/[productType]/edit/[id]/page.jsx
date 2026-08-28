@@ -1,14 +1,10 @@
 "use client"
 
+import { toast } from "sonner";
+
 import Link from "next/link";
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
-import {
-    SidebarInset,
-    SidebarProvider,
-} from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -77,7 +73,7 @@ export default function EditCoupon() {
                     setTotalUsageLimit(data.totalUsageLimit ? data.totalUsageLimit.toString() : "");
                     setIsActive(data.hasOwnProperty('isActive') ? data.isActive : true);
                 } else {
-                    alert("Coupon not found");
+                    toast.error("Coupon not found");
                     router.push(`/dashboard/coupon-management/${productType}`);
                 }
             } catch (error) {
@@ -124,11 +120,11 @@ export default function EditCoupon() {
         e.preventDefault();
 
         if (applyTo === "category" && !applicableCategory) {
-            alert("Please select a category.");
+            toast.error("Please select a category");
             return;
         }
         if (applyTo === "product" && !applicableProduct) {
-            alert("Please select a product.");
+            toast.error("Please select a product");
             return;
         }
 
@@ -159,26 +155,19 @@ export default function EditCoupon() {
 
             await updateDoc(doc(db, "coupons", couponId), couponData);
             
-            alert("Coupon Updated Successfully!");
+            toast.success("Coupon updated successfully");
             router.push(`/dashboard/coupon-management/${productType}`);
         } catch (error) {
             console.error("Error updating coupon: ", error);
-            alert("Error updating coupon: " + error.message);
+            toast.error(error.message || "Failed to update coupon");
         } finally {
             setSaving(false);
         }
     };
 
     return (
-        <SidebarProvider
-            style={{
-                "--sidebar-width": "calc(var(--spacing) * 72)",
-                "--header-height": "calc(var(--spacing) * 12)"
-            }}>
-            <AppSidebar variant="inset" />
-            <SidebarInset>
-                <SiteHeader />
-                <div className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8 max-w-4xl mx-auto w-full">
+        <>
+                <div className="dashboard-page dashboard-page-narrow">
                     <div className="flex items-center gap-4">
                         <Link href={`/dashboard/coupon-management/${productType}`}>
                             <Button variant="outline" size="icon">
@@ -194,16 +183,15 @@ export default function EditCoupon() {
                             <p className="text-muted-foreground">Loading coupon details...</p>
                         </div>
                     ) : (
-                        <Card className="border-0 shadow-lg relative group overflow-hidden">
-                            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5 opacity-50 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+                        <Card className="relative overflow-visible">
                             <form onSubmit={handleSubmit} className="relative z-10">
-                                <CardHeader className="border-b border-border/50 pb-6 mb-6">
+                                <CardHeader className="border-b border-border/60 pb-5">
                                     <CardTitle className="text-2xl">Edit Details</CardTitle>
                                     <CardDescription className="text-base text-muted-foreground/80">
                                         Update the rules and limits for coupon: {code}.
                                     </CardDescription>
                                 </CardHeader>
-                                <CardContent className="space-y-8 px-8">
+                                <CardContent className="space-y-8 px-4 py-6 sm:px-6 lg:px-8">
                                     {/* Basic Info */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="grid gap-3 group/input">
@@ -419,7 +407,7 @@ export default function EditCoupon() {
                                         </div>
                                     </div>
                                 </CardContent>
-                                <CardFooter className="flex justify-between border-t border-border/50 p-8 bg-muted/20 backdrop-blur-sm -mx-0">
+                                <CardFooter className="sticky bottom-0 z-20 flex justify-between gap-3 border-t border-border/70 bg-card/95 p-4 backdrop-blur-xl sm:p-6">
                                     <Link href={`/dashboard/coupon-management/${productType}`}>
                                         <Button variant="outline" type="button" disabled={saving}>Cancel</Button>
                                     </Link>
@@ -436,7 +424,6 @@ export default function EditCoupon() {
                         </Card>
                     )}
                 </div>
-            </SidebarInset>
-        </SidebarProvider>
+            </>
     );
 }

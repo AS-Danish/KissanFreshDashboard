@@ -2,15 +2,9 @@
 
 import { useState, useMemo, useEffect, useRef } from "react"
 import { db } from "@/firebase/config"
-import { collection, onSnapshot, query, orderBy, doc, updateDoc, limit, where } from "firebase/firestore"
-import { AppSidebar } from "@/components/app-sidebar"
+import { collection, documentId, getDocs, onSnapshot, query, orderBy, doc, updateDoc, limit, where } from "firebase/firestore"
 import { algoliaIndex } from "@/lib/algolia"
 import { logAdminAction } from "@/services/loggerService"
-import { SiteHeader } from "@/components/site-header"
-import {
-    SidebarInset,
-    SidebarProvider,
-} from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -139,6 +133,8 @@ export default function OrderManagement() {
     const [algoliaTotalPages, setAlgoliaTotalPages] = useState(1);
     const [algoliaTotalHits, setAlgoliaTotalHits] = useState(0);
     const unsubscribeRef = useRef(null);
+    const copyTimerRef = useRef(null);
+    const relatedRequestRef = useRef(0);
     
     const cleanupListener = () => {
         if (unsubscribeRef.current) {
@@ -148,7 +144,11 @@ export default function OrderManagement() {
     };
 
     useEffect(() => {
-        return cleanupListener;
+        return () => {
+            cleanupListener();
+            if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+            relatedRequestRef.current += 1;
+        };
     }, []);
 
     const loadStats = async () => {
@@ -160,62 +160,48 @@ export default function OrderManagement() {
     const fetchRelatedData = async (ordersList) => {
         const userIds = [...new Set(ordersList.map(o => o.userId).filter(Boolean))];
         const riderIds = [...new Set(ordersList.map(o => o.riderId).filter(Boolean))];
-        
-        // Fetch only needed users/riders (could be optimized with batched getDocs, using basic Promise.all for simplicity)
-        const { getDoc, doc } = await import("firebase/firestore");
-        
-        // Use functional state updates to read the latest state
-        setUsersMap(prev => {
-            const missingUserIds = userIds.filter(id => !prev[id]);
-            if (missingUserIds.length > 0) {
-                Promise.all(missingUserIds.map(id => getDoc(doc(db, "users", id)))).then(snaps => {
-                    setUsersMap(p => {
-                        const updated = { ...p };
-                        snaps.forEach(snap => {
-                            if (snap.exists()) {
-                                updated[snap.id] = snap.data().name || snap.data().displayName || "Unknown User";
-                            }
-                        });
-                        return updated;
-                    });
-                    setUserPhonesMap(p => {
-                        const updated = { ...p };
-                        snaps.forEach(snap => {
-                            if (snap.exists()) {
-                                let phone = snap.data().phoneNumber || snap.data().phone || "No Number";
-                                if (phone.startsWith("+91") && phone.length > 3 && phone[3] !== ' ') {
-                                    phone = "+91 " + phone.substring(3);
-                                }
-                                updated[snap.id] = phone;
-                            }
-                        });
-                        return updated;
-                    });
-                }).catch(console.error);
-            }
-            return prev;
-        });
-        
-        setRidersMap(prev => {
-            const missingRiderIds = riderIds.filter(id => !prev[id]);
-            if (missingRiderIds.length > 0) {
-                Promise.all(missingRiderIds.map(id => getDoc(doc(db, "riders", id)))).then(snaps => {
-                    setRidersMap(p => {
-                        const updated = { ...p };
-                        snaps.forEach(snap => {
-                            if (snap.exists()) {
-                                updated[snap.id] = snap.data().name;
-                                if (snap.data().riderId) updated[snap.data().riderId] = snap.data().name;
-                            }
-                        });
-                        return updated;
-                    });
-                }).catch(console.error);
-            }
-            return prev;
-        });
-        
+        const requestId = ++relatedRequestRef.current;
+        const chunks = (values) => Array.from(
+            { length: Math.ceil(values.length / 30) },
+            (_, index) => values.slice(index * 30, index * 30 + 30)
+        );
+        const fetchDocuments = async (collectionName, ids) => {
+            if (ids.length === 0) return [];
+            const snapshots = await Promise.all(chunks(ids).map((chunk) =>
+                getDocs(query(collection(db, collectionName), where(documentId(), "in", chunk)))
+            ));
+            return snapshots.flatMap((snapshot) => snapshot.docs);
+        };
 
+        try {
+            const [userDocs, riderDocs] = await Promise.all([
+                fetchDocuments("users", userIds),
+                fetchDocuments("riders", riderIds),
+            ]);
+            if (requestId !== relatedRequestRef.current) return;
+
+            const names = {};
+            const phones = {};
+            userDocs.forEach((userDoc) => {
+                const data = userDoc.data();
+                names[userDoc.id] = data.name || data.displayName || "Unknown user";
+                let phone = data.phoneNumber || data.phone || "No number";
+                if (phone.startsWith("+91") && phone.length > 3 && phone[3] !== " ") phone = `+91 ${phone.substring(3)}`;
+                phones[userDoc.id] = phone;
+            });
+            setUsersMap((previous) => ({ ...previous, ...names }));
+            setUserPhonesMap((previous) => ({ ...previous, ...phones }));
+
+            const riderNames = {};
+            riderDocs.forEach((riderDoc) => {
+                const data = riderDoc.data();
+                riderNames[riderDoc.id] = data.name;
+                if (data.riderId) riderNames[data.riderId] = data.name;
+            });
+            setRidersMap((previous) => ({ ...previous, ...riderNames }));
+        } catch (error) {
+            console.error("Failed to load related order data:", error);
+        }
     };
 
     const loadOrders = async (pageIndex, reset = false) => {
@@ -341,24 +327,22 @@ export default function OrderManagement() {
         }
     };
 
-    const copyToClipboard = (e, text, id) => {
+    const copyToClipboard = async (e, text, id) => {
         e.stopPropagation();
-        navigator.clipboard.writeText(text);
-        setCopiedId(id);
-        setTimeout(() => setCopiedId(null), 2000);
-        toast.info("ID Copied");
+        try {
+            await navigator.clipboard.writeText(text);
+            setCopiedId(id);
+            if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+            copyTimerRef.current = setTimeout(() => setCopiedId(null), 2000);
+            toast.success("Order ID copied");
+        } catch {
+            toast.error("Could not copy the order ID");
+        }
     }
 
     return (
-        <SidebarProvider
-            style={{
-                "--sidebar-width": "calc(var(--spacing) * 72)",
-                "--header-height": "calc(var(--spacing) * 12)"
-            }}>
-            <AppSidebar variant="inset" />
-            <SidebarInset className="bg-background">
-                <SiteHeader />
-                <div className="flex flex-1 flex-col gap-8 p-6 md:p-10">
+        <>
+                <div className="dashboard-page dashboard-page-wide">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <h2 className="text-2xl font-bold tracking-tight text-foreground uppercase">
                             Order Management
@@ -699,7 +683,6 @@ export default function OrderManagement() {
                     )}
                 </div>
 
-            </SidebarInset>
-        </SidebarProvider>
+            </>
     );
 }

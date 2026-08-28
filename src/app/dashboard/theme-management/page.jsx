@@ -11,9 +11,6 @@ import { toast } from "sonner";
 import { storage } from "@/firebase/config";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { IconCheck, IconLoader2, IconPalette, IconUpload } from "@tabler/icons-react";
-import { AppSidebar } from "@/components/app-sidebar";
-import { SiteHeader } from "@/components/site-header";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import imageCompression from "browser-image-compression";
 
 export default function ThemeManagementPage() {
@@ -149,32 +146,15 @@ export default function ThemeManagementPage() {
 
     if (loading) {
         return (
-            <SidebarProvider
-                style={{
-                    "--sidebar-width": "calc(var(--spacing) * 72)",
-                    "--header-height": "calc(var(--spacing) * 12)"
-                }}
-            >
-                <AppSidebar variant="inset" />
-                <SidebarInset>
-                    <SiteHeader />
-                    <div className="flex-1 p-8">Loading themes...</div>
-                </SidebarInset>
-            </SidebarProvider>
+            <>
+                    <div className="dashboard-loading" role="status">Loading themes…</div>
+                </>
         );
     }
 
     return (
-        <SidebarProvider
-            style={{
-                "--sidebar-width": "calc(var(--spacing) * 72)",
-                "--header-height": "calc(var(--spacing) * 12)"
-            }}
-        >
-            <AppSidebar variant="inset" />
-            <SidebarInset>
-                <SiteHeader />
-                <div className="flex-1 space-y-4 p-8 pt-6">
+        <>
+                <div className="dashboard-page dashboard-page-wide">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
                         <div>
                             <h2 className="text-3xl font-bold tracking-tight">Theme Management</h2>
@@ -307,7 +287,6 @@ export default function ThemeManagementPage() {
                         })}
                     </div>
                 </div>
-            </SidebarInset>
-        </SidebarProvider>
+            </>
     );
 }

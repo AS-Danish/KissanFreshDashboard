@@ -1,54 +1,54 @@
 import { useEffect, useState } from 'react';
-import { messaging, db } from '@/firebase/config';
+import { getMessagingInstance, db } from '@/firebase/config';
 import { getToken, onMessage } from 'firebase/messaging';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { toast } from 'sonner';
 
 export const useFCM = (userId) => {
   const [fcmToken, setFcmToken] = useState(null);
 
   useEffect(() => {
-    if (!userId || !messaging) return;
+    if (!userId || typeof Notification === 'undefined') return;
 
-    const requestPermissionAndGetToken = async () => {
+    let active = true;
+    let unsubscribeMessage;
+
+    const initializeMessaging = async () => {
       try {
-        const permission = await Notification.requestPermission();
-        if (permission === 'granted') {
-          const currentToken = await getToken(messaging);
-          if (currentToken) {
-            setFcmToken(currentToken);
-            // Save the token to dashboard_tokens collection for backend to use
-            await setDoc(doc(db, 'dashboard_tokens', currentToken), {
-              token: currentToken,
-              userId: userId,
-              updatedAt: new Date().toISOString()
-            }, { merge: true });
-          } else {
-            console.log('No registration token available. Request permission to generate one.');
-          }
-        } else {
-          console.log('Notification permission denied.');
-        }
+        // Permission prompts must follow an explicit user action. Reuse an existing
+        // grant here; the dashboard settings UI owns any future prompt.
+        if (Notification.permission !== 'granted') return;
+
+        const messaging = await getMessagingInstance();
+        if (!messaging || !active) return;
+
+        const currentToken = await getToken(messaging);
+        if (!currentToken || !active) return;
+
+        setFcmToken(currentToken);
+        await setDoc(doc(db, 'dashboard_tokens', currentToken), {
+          token: currentToken,
+          userId,
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
+
+        if (!active) return;
+        unsubscribeMessage = onMessage(messaging, (payload) => {
+          toast(payload.notification?.title || 'New notification', {
+            description: payload.notification?.body,
+            duration: 5000,
+          });
+        });
       } catch (error) {
-        console.error('An error occurred while retrieving token. ', error);
+        console.error('Unable to initialize dashboard notifications.', error);
       }
     };
 
-    requestPermissionAndGetToken();
-
-    const unsubscribe = onMessage(messaging, (payload) => {
-      console.log('Message received in foreground:', payload);
-      // Show toast for foreground notifications
-      toast(payload.notification?.title || 'New Notification', {
-        description: payload.notification?.body,
-        duration: 5000,
-      });
-    });
+    initializeMessaging();
 
     return () => {
-      if (unsubscribe) {
-        unsubscribe();
-      }
+      active = false;
+      unsubscribeMessage?.();
     };
   }, [userId]);
 

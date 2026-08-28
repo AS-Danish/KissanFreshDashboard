@@ -1,32 +1,34 @@
 import { Separator } from "@/components/ui/separator"
-import { IconRouter, IconCheck as IconTick } from "@tabler/icons-react"
+import { IconReceiptRupee, IconCheck as IconTick } from "@tabler/icons-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export function OrderFinancialSummary({ itemsCount, paymentMethod }) {
     return (
-        <div className="space-y-3">
-            <div className="flex items-center gap-2 text-primary">
-                <IconRouter className="h-4 w-4" />
-                <h3 className="font-bold text-xs uppercase tracking-wider">Financial Summary</h3>
-            </div>
-            <div className="bg-muted p-5 rounded-xl border space-y-4 h-full">
+        <Card className="h-full">
+            <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                    <IconReceiptRupee className="h-4 w-4 text-primary" /> Payment overview
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
                 <div className="flex flex-col gap-1">
-                    <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Items Quantity</p>
+                    <p className="text-xs font-medium text-muted-foreground">Total quantity</p>
                     <div className="flex items-baseline gap-1">
-                        <p className="text-3xl font-black text-primary">
-                            {itemsCount}
+                        <p className="text-3xl font-bold text-primary">
+                            {Number(itemsCount) || 0}
                         </p>
-                        <span className="text-[10px] font-black uppercase text-muted-foreground opacity-50">SKU Units</span>
+                        <span className="text-xs text-muted-foreground">units</span>
                     </div>
                 </div>
                 <Separator className="bg-border" />
                 <div className="flex flex-col gap-2">
-                    <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Payment Type</p>
-                    <div className="flex items-center gap-2 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100 p-2.5 rounded-xl border border-green-200 dark:border-green-800 w-fit">
+                    <p className="text-xs font-medium text-muted-foreground">Payment method</p>
+                    <div className="flex w-fit items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
                         <IconTick className="h-4 w-4" />
-                        <p className="text-xs font-black uppercase tracking-tight">{paymentMethod?.toUpperCase() === 'COD' || paymentMethod?.toUpperCase() === 'CASH' ? 'COD' : 'Online'}</p>
+                        <p className="text-xs font-semibold">{paymentMethod?.toUpperCase() === 'COD' || paymentMethod?.toUpperCase() === 'CASH' ? 'Cash on delivery' : 'Paid online'}</p>
                     </div>
                 </div>
-            </div>
-        </div>
+            </CardContent>
+        </Card>
     )
 }

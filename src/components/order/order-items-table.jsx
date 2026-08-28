@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/table"
 
 export function OrderItemsTable({ items }) {
+    const money = (value) => Number(value || 0).toFixed(2);
     return (
         <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -33,17 +34,18 @@ export function OrderItemsTable({ items }) {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {items?.map((item, index) => (
+                        {items?.length ? items.map((item, index) => (
                             <TableRow key={index} className="hover:bg-muted transition-colors">
                                 <TableCell className="py-4 px-4">
                                     <div className="flex items-center gap-3">
                                         <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg border bg-muted">
-                                            <Image
+                                            {item.image ? <Image
                                                 src={item.image}
-                                                alt={item.title}
+                                                alt={item.title || "Order item"}
                                                 fill
+                                                sizes="48px"
                                                 className="object-cover"
-                                            />
+                                            /> : <span className="flex h-full items-center justify-center text-xs text-muted-foreground">—</span>}
                                         </div>
                                         <div className="flex flex-col">
                                             <span className="font-semibold text-sm text-foreground line-clamp-1">{item.title}</span>
@@ -63,10 +65,14 @@ export function OrderItemsTable({ items }) {
                                         {item.quantity}
                                     </span>
                                 </TableCell>
-                                <TableCell className="text-right text-xs text-muted-foreground font-medium">₹{item.price.toFixed(2)}</TableCell>
-                                <TableCell className="text-right font-bold text-sm text-foreground">₹{(item.price * item.quantity).toFixed(2)}</TableCell>
+                                <TableCell className="text-right text-xs text-muted-foreground font-medium">₹{money(item.price)}</TableCell>
+                                <TableCell className="text-right font-bold text-sm text-foreground">₹{money(Number(item.price) * Number(item.quantity))}</TableCell>
                             </TableRow>
-                        ))}
+                        )) : (
+                            <TableRow>
+                                <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">No items recorded for this order.</TableCell>
+                            </TableRow>
+                        )}
                     </TableBody>
                 </Table>
             </div>

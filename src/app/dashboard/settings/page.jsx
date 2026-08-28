@@ -1,12 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
-import {
-    SidebarInset,
-    SidebarProvider,
-} from "@/components/ui/sidebar"
 import { useTheme } from "next-themes"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
@@ -67,15 +61,8 @@ export default function SettingsPage() {
   }
 
   return (
-    <SidebarProvider
-      style={{
-          "--sidebar-width": "calc(var(--spacing) * 72)",
-          "--header-height": "calc(var(--spacing) * 12)"
-      }}>
-      <AppSidebar variant="inset" />
-      <SidebarInset>
-        <SiteHeader />
-        <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8 max-w-4xl mx-auto w-full animate-in fade-in duration-500">
+    <>
+        <div className="dashboard-page dashboard-page-narrow">
           <div className="flex flex-col gap-1">
               <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
               <p className="text-muted-foreground">Manage your app preferences and notification settings.</p>
@@ -178,7 +165,6 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
-      </SidebarInset>
-    </SidebarProvider>
+      </>
   )
 }

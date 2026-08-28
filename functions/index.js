@@ -139,12 +139,26 @@ exports.generateDailySlots = require("firebase-functions/v2/scheduler")
 
 exports.manualGenerateSlots = require("firebase-functions/v2/https")
   .onCall(async (request) => {
-    // Optional: check request.auth for admin permissions here
+    const { HttpsError } = require("firebase-functions/v2/https");
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "You must be signed in to generate slots.");
+    }
+
     try {
+      const requesterDoc = await db.collection("users").doc(request.auth.uid).get();
+      const requester = requesterDoc.data();
+      const role = requester?.role?.toUpperCase();
+      const canManageSlots = role === "ADMIN" ||
+        (role === "MANAGEMENT" && requester?.permissions?.["Slot Management"] === true);
+
+      if (!requesterDoc.exists || !canManageSlots) {
+        throw new HttpsError("permission-denied", "You do not have permission to generate slots.");
+      }
+
       const result = await generateSlotsCore(db, admin);
       return result;
     } catch (error) {
-      const { HttpsError } = require("firebase-functions/v2/https");
+      if (error instanceof HttpsError) throw error;
       throw new HttpsError("internal", error.message);
     }
   });
@@ -174,7 +188,7 @@ exports.processimmediaterefund = require("firebase-functions/v2/firestore")
       return null;
     }
 
-    const { paymentId, totalAmount } = data;
+    const { paymentId } = data;
 
     if (!paymentId) {
       console.error(`Document ${docId} missing paymentId. ` +
@@ -211,7 +225,7 @@ exports.processimmediaterefund = require("firebase-functions/v2/firestore")
       if (payment.status === "authorized") {
         console.log(`Payment ${paymentId} is authorized. Capturing now...`);
         const captureResponse = await razorpay.payments.capture(paymentId,
-          Math.round(totalAmount * 100), "INR");
+          payment.amount, payment.currency || "INR");
         console.log(`Capture successful: ${captureResponse.id}. ` +
           `Waiting 2s for sync...`);
         await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -267,6 +281,15 @@ exports.createOrder = require("firebase-functions/v2/https")
       const { HttpsError } = require("firebase-functions/v2/https");
       const orderData = data.order;
 
+      if (!auth) {
+        throw new HttpsError("unauthenticated",
+          "User must be logged in to place an order.");
+      }
+
+      if (!orderData || !orderData.items || orderData.items.length === 0) {
+        throw new HttpsError("invalid-argument", "Missing order items.");
+      }
+
       // 1. Service Area Restriction Check (30km Radius)
       const cityCenter = { lat: 19.8762, lng: 75.3433 };
       if (orderData.latitude && orderData.longitude) {
@@ -286,15 +309,6 @@ exports.createOrder = require("firebase-functions/v2/https")
       }
       // ... rest of your existing transaction logic ...
 
-      if (!auth) {
-        throw new HttpsError("unauthenticated",
-          "User must be logged in to place an order.");
-      }
-
-      if (!orderData || !orderData.items || orderData.items.length === 0) {
-        throw new HttpsError("invalid-argument", "Missing order items.");
-      }
-
       const selectedSlotId = orderData.slotId;
       if (!selectedSlotId) {
         throw new HttpsError("invalid-argument",
@@ -306,6 +320,24 @@ exports.createOrder = require("firebase-functions/v2/https")
           const userRef = db.collection("users").doc(auth.uid);
           const userSnap = await transaction.get(userRef);
           const customerName = userSnap.exists ? (userSnap.data()?.name || userSnap.data()?.displayName || "Guest") : "Guest";
+
+          let couponDoc = null;
+          if (orderData.couponCode) {
+            const couponQuery = db.collection("coupons")
+              .where("code", "==", orderData.couponCode.toString().trim().toUpperCase())
+              .limit(1);
+            const couponSnapshot = await transaction.get(couponQuery);
+            if (couponSnapshot.empty) {
+              throw new HttpsError("failed-precondition", "The selected coupon is no longer available.");
+            }
+            couponDoc = couponSnapshot.docs[0];
+            const coupon = couponDoc.data();
+            const usageLimit = Number(coupon.totalUsageLimit || 0);
+            const usageCount = Number(coupon.currentUsageCount || 0);
+            if (!coupon.isActive || (usageLimit > 0 && usageCount >= usageLimit)) {
+              throw new HttpsError("failed-precondition", "The selected coupon has expired or reached its usage limit.");
+            }
+          }
 
           const uniqueProductIds = [...new Set(orderData.items.map((item) => item.productId))];
           const productRefs = uniqueProductIds.map((id) => db.collection("products").doc(id));
@@ -441,6 +473,12 @@ exports.createOrder = require("firebase-functions/v2/https")
             transaction.update(productRefMap[id], productDataMap[id]);
           }
 
+          if (couponDoc) {
+            transaction.update(couponDoc.ref, {
+              currentUsageCount: admin.firestore.FieldValue.increment(1),
+            });
+          }
+
           const newSlotAssignedOrders =
             (selectedSlotDoc.data().assignedOrders || 0) + 1;
           transaction.update(selectedSlotDoc.ref,
@@ -454,6 +492,7 @@ exports.createOrder = require("firebase-functions/v2/https")
           const enrichedOrderData = {
             ...orderData,
             id: shortId, // use new short ID
+            userId: auth.uid,
             slotId: selectedSlotDoc.id,
             riderId: selectedRiderDoc.id,
             status: "ASSIGNED",

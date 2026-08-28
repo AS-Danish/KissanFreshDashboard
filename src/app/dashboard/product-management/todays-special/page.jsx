@@ -5,12 +5,6 @@ import Image from "next/image"
 import { useState, useMemo, useEffect } from "react"
 import { db } from "@/firebase/config"
 import { collection, onSnapshot, doc, getDoc, setDoc } from "firebase/firestore"
-import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
-import {
-    SidebarInset,
-    SidebarProvider,
-} from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -159,20 +153,13 @@ export default function TodaysSpecial() {
     const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE) || 1;
     const paginatedProducts = filteredProducts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-    useMemo(() => {
+    useEffect(() => {
         setCurrentPage(1);
     }, [searchQuery, categoryFilter, priceFilter, tagFilter]);
 
     return (
-        <SidebarProvider
-            style={{
-                "--sidebar-width": "calc(var(--spacing) * 72)",
-                "--header-height": "calc(var(--spacing) * 12)"
-            }}>
-            <AppSidebar variant="inset" />
-            <SidebarInset>
-                <SiteHeader />
-                <div className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+        <>
+                <div className="dashboard-page dashboard-page-wide">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <h2 className="text-2xl font-bold tracking-tight text-foreground">
                             Today's Special
@@ -214,7 +201,7 @@ export default function TodaysSpecial() {
                                     <div key={sp.productId} className="flex flex-col border bg-background rounded-lg overflow-hidden shadow-sm items-center p-3 relative group">
                                          <div className="relative h-24 w-24 mb-3 rounded-md overflow-hidden bg-muted">
                                              {sp.image ? (
-                                                  <Image src={sp.image} alt={sp.title} fill className="object-cover" />
+                                                  <Image src={sp.image} alt={sp.title} fill sizes="96px" className="object-cover" />
                                              ) : (
                                                   <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground">No img</div>
                                              )}
@@ -332,6 +319,7 @@ export default function TodaysSpecial() {
                                                                 src={product.images[0]}
                                                                 alt={product.name}
                                                                 fill
+                                                                sizes="48px"
                                                                 className="object-cover"
                                                             />
                                                         ) : (
@@ -399,7 +387,6 @@ export default function TodaysSpecial() {
                         </div>
                     )}
                 </div>
-            </SidebarInset>
-        </SidebarProvider>
+            </>
     );
 }

@@ -5,12 +5,6 @@ import { useParams } from "next/navigation";
 import { useState, useMemo, useEffect } from "react"
 import { db } from "@/firebase/config"
 import { collection, onSnapshot, doc, deleteDoc, updateDoc } from "firebase/firestore"
-import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
-import {
-    SidebarInset,
-    SidebarProvider,
-} from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -31,6 +25,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { IconEdit, IconTrash, IconSearch, IconChevronLeft, IconChevronRight, IconCheck, IconX } from "@tabler/icons-react"
 import { Switch } from "@/components/ui/switch"
+import { ConfirmDeleteDialog } from "@/components/dashboard/confirm-delete-dialog"
+import { toast } from "sonner"
 
 const ITEMS_PER_PAGE = 10;
 
@@ -63,13 +59,13 @@ export default function CouponManagement() {
     }, [productType]);
 
     const handleDelete = async (id) => {
-        if (window.confirm("Are you sure you want to delete this coupon?")) {
-            try {
-                await deleteDoc(doc(db, "coupons", id));
-            } catch (error) {
-                console.error("Error deleting coupon: ", error);
-                alert("Failed to delete coupon.");
-            }
+        try {
+            await deleteDoc(doc(db, "coupons", id));
+            toast.success("Coupon deleted");
+        } catch (error) {
+            console.error("Error deleting coupon: ", error);
+            toast.error("Failed to delete coupon");
+            throw error;
         }
     };
 
@@ -80,7 +76,7 @@ export default function CouponManagement() {
             });
         } catch (error) {
             console.error("Error updating coupon status: ", error);
-            alert("Failed to update status.");
+            toast.error("Failed to update coupon status");
         }
     };
 
@@ -98,20 +94,13 @@ export default function CouponManagement() {
     const totalPages = Math.ceil(filteredCoupons.length / ITEMS_PER_PAGE) || 1;
     const paginatedCoupons = filteredCoupons.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-    useMemo(() => {
+    useEffect(() => {
         setCurrentPage(1);
     }, [searchQuery, statusFilter]);
 
     return (
-        <SidebarProvider
-            style={{
-                "--sidebar-width": "calc(var(--spacing) * 72)",
-                "--header-height": "calc(var(--spacing) * 12)"
-            }}>
-            <AppSidebar variant="inset" />
-            <SidebarInset>
-                <SiteHeader />
-                <div className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+        <>
+                <div className="dashboard-page dashboard-page-wide">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <h2 className="text-2xl font-bold tracking-tight text-foreground">
                             {productType === "home-food" ? "Home Food Coupons" : "Kissan Fresh Coupons"}
@@ -223,15 +212,20 @@ export default function CouponManagement() {
                                                             <span className="sr-only">Edit</span>
                                                         </Button>
                                                     </Link>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
-                                                        onClick={() => handleDelete(coupon.id)}
+                                                    <ConfirmDeleteDialog
+                                                        title="Delete coupon?"
+                                                        description={`This permanently removes ${coupon.code}. This action cannot be undone.`}
+                                                        onConfirm={() => handleDelete(coupon.id)}
                                                     >
-                                                        <IconTrash className="h-4 w-4" />
-                                                        <span className="sr-only">Delete</span>
-                                                    </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+                                                        >
+                                                            <IconTrash className="h-4 w-4" />
+                                                            <span className="sr-only">Delete {coupon.code}</span>
+                                                        </Button>
+                                                    </ConfirmDeleteDialog>
                                                 </div>
                                             </TableCell>
                                         </TableRow>
@@ -274,7 +268,6 @@ export default function CouponManagement() {
                         </div>
                     )}
                 </div>
-            </SidebarInset>
-        </SidebarProvider>
+            </>
     );
 }

@@ -4,21 +4,17 @@ import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
 import { db } from "@/firebase/config"
 import { doc, getDoc, updateDoc } from "firebase/firestore"
-import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
-import { IconChevronLeft, IconDeviceFloppy, IconKey } from "@tabler/icons-react"
+import { IconChevronLeft, IconDeviceFloppy, IconEye, IconEyeOff, IconKey } from "@tabler/icons-react"
 import { Input } from "@/components/ui/input"
 import { httpsCallable } from "firebase/functions"
 import { functions } from "@/firebase/config"
 import { logAdminAction } from "@/services/loggerService"
 import { toast } from "sonner"
 import { useAppStore } from "@/store/useAppStore"
-import ProtectedRoute from "@/components/ProtectedRoute"
 
 const PERMISSIONS_LIST = [
     { key: "Product Management", label: "Product Management", desc: "Access to view and manage products." },
@@ -45,6 +41,7 @@ export default function PermissionsPage({ params }) {
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [newPassword, setNewPassword] = useState("")
+    const [showPassword, setShowPassword] = useState(false)
     const [changingPassword, setChangingPassword] = useState(false)
 
     useEffect(() => {
@@ -136,16 +133,8 @@ export default function PermissionsPage({ params }) {
     }
 
     return (
-        <ProtectedRoute>
-            <SidebarProvider
-                style={{
-                    "--sidebar-width": "calc(var(--spacing) * 72)",
-                    "--header-height": "calc(var(--spacing) * 12)"
-                }}>
-                <AppSidebar variant="inset" />
-                <SidebarInset className="bg-background">
-                    <SiteHeader />
-                    <div className="flex flex-1 flex-col gap-8 p-6 md:p-10">
+            <>
+                    <div className="dashboard-page dashboard-page-wide">
                         <div className="flex flex-col gap-4">
                             <Button 
                                 variant="ghost" 
@@ -222,16 +211,29 @@ export default function PermissionsPage({ params }) {
                             </CardHeader>
                             <form onSubmit={handleChangePassword}>
                                 <CardContent className="pt-6">
-                                    <div className="grid gap-3 max-w-sm">
+                                    <div className="relative grid gap-3 max-w-sm">
                                         <Label htmlFor="new-password">New Password</Label>
                                         <Input
                                             id="new-password"
-                                            type="text"
+                                            type={showPassword ? "text" : "password"}
                                             placeholder="Enter new password"
                                             value={newPassword}
                                             onChange={(e) => setNewPassword(e.target.value)}
+                                            autoComplete="new-password"
+                                            minLength={6}
+                                            className="pr-10"
                                             required
                                         />
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="absolute right-0 top-7 h-10 w-10 hover:bg-transparent"
+                                            onClick={() => setShowPassword((visible) => !visible)}
+                                            aria-label={showPassword ? "Hide password" : "Show password"}
+                                        >
+                                            {showPassword ? <IconEyeOff className="h-4 w-4" /> : <IconEye className="h-4 w-4" />}
+                                        </Button>
                                     </div>
                                 </CardContent>
                                 <CardFooter className="bg-muted/20 border-t border-border/50 py-4">
@@ -242,8 +244,6 @@ export default function PermissionsPage({ params }) {
                             </form>
                         </Card>
                     </div>
-                </SidebarInset>
-            </SidebarProvider>
-        </ProtectedRoute>
+            </>
     );
 }

@@ -5,9 +5,6 @@ import { useRouter } from "next/navigation"
 import { db, functions } from "@/firebase/config"
 import { collection, onSnapshot, query, where } from "firebase/firestore"
 import { httpsCallable } from "firebase/functions"
-import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -39,7 +36,6 @@ import { Badge } from "@/components/ui/badge"
 import { IconUserPlus, IconUsers, IconSettings, IconShieldLock, IconEye, IconEyeOff } from "@tabler/icons-react"
 import { toast } from "sonner"
 import { useAppStore } from "@/store/useAppStore"
-import ProtectedRoute from "@/components/ProtectedRoute"
 
 export default function UserManagementPage() {
     const router = useRouter()
@@ -129,16 +125,8 @@ export default function UserManagementPage() {
     }
 
     return (
-        <ProtectedRoute>
-            <SidebarProvider
-                style={{
-                    "--sidebar-width": "calc(var(--spacing) * 72)",
-                    "--header-height": "calc(var(--spacing) * 12)"
-                }}>
-                <AppSidebar variant="inset" />
-                <SidebarInset className="bg-background">
-                    <SiteHeader />
-                    <div className="flex flex-1 flex-col gap-8 p-6 md:p-10">
+        <>
+                    <div className="dashboard-page dashboard-page-wide">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <div className="space-y-1">
                                 <h2 className="text-2xl font-bold tracking-tight text-foreground uppercase">
@@ -179,6 +167,8 @@ export default function UserManagementPage() {
                                                     value={formData.password} 
                                                     onChange={handleFormChange} 
                                                     required 
+                                                    minLength={6}
+                                                    autoComplete="new-password"
                                                     placeholder="Min 6 characters" 
                                                     className="pr-10"
                                                 />
@@ -278,8 +268,6 @@ export default function UserManagementPage() {
                             </Table>
                         </div>
                     </div>
-                </SidebarInset>
-            </SidebarProvider>
-        </ProtectedRoute>
+            </>
     );
 }

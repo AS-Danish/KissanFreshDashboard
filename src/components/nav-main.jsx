@@ -8,6 +8,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import {
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -17,13 +18,15 @@ import {
 } from "@/components/ui/sidebar"
 
 export function NavMain({
-  items
+  items,
+  label,
 }) {
   const pathname = usePathname();
 
   return (
-    <SidebarGroup>
-      <SidebarGroupContent className="flex flex-col gap-2">
+    <SidebarGroup className="py-2">
+      {label && <SidebarGroupLabel className="px-3 text-[10px] font-bold uppercase tracking-[0.14em] text-sidebar-foreground/45">{label}</SidebarGroupLabel>}
+      <SidebarGroupContent className="flex flex-col gap-1">
         <SidebarMenu>
           {items.map((item) => {
             // Determine active state: exact match for /dashboard, startsWith for others
@@ -34,14 +37,14 @@ export function NavMain({
             if (item.items && item.items.length > 0) {
               return (
                 <Collapsible
-                  key={item.title}
+                  key={`${item.title}-${isActive}`}
                   asChild
                   defaultOpen={isActive}
                   className="group/collapsible"
                 >
                   <SidebarMenuItem>
                     <CollapsibleTrigger asChild>
-                      <SidebarMenuButton tooltip={item.title} isActive={isActive}>
+                      <SidebarMenuButton tooltip={item.title} isActive={isActive} className="h-10 rounded-lg px-3 font-medium data-[active=true]:bg-white data-[active=true]:text-[#15543f] data-[active=true]:shadow-sm">
                         {item.icon && <item.icon />}
                         <span>{item.title}</span>
                         <IconChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
@@ -57,11 +60,10 @@ export function NavMain({
                             <SidebarMenuSubButton
                               asChild
                               isActive={pathname === subItem.url}
-                              className="transition-all duration-300 hover:translate-x-1.5 hover:bg-primary/10 hover:text-primary relative overflow-hidden"
+                              className="h-9 rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:font-semibold data-[active=true]:text-white"
                             >
                               <Link href={subItem.url}>
-                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-0 bg-primary transition-all duration-300 group-hover/subitem:h-full rounded-r-md opacity-0 group-hover/subitem:opacity-100" />
-                                <span className="transition-transform duration-300 group-hover/subitem:translate-x-1">{subItem.title}</span>
+                                <span>{subItem.title}</span>
                               </Link>
                             </SidebarMenuSubButton>
                           </SidebarMenuSubItem>
@@ -75,7 +77,7 @@ export function NavMain({
 
             return (
               <SidebarMenuItem key={item.title}>
-                <SidebarMenuButton tooltip={item.title} isActive={isActive} asChild>
+                <SidebarMenuButton tooltip={item.title} isActive={isActive} asChild className="h-10 rounded-lg px-3 font-medium data-[active=true]:bg-white data-[active=true]:text-[#15543f] data-[active=true]:shadow-sm">
                   <Link href={item.url}>
                     {item.icon && <item.icon />}
                     <span>{item.title}</span>

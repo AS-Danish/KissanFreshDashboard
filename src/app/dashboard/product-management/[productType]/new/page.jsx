@@ -1,14 +1,10 @@
 "use client"
 
+import { toast } from "sonner";
+
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
-import {
-    SidebarInset,
-    SidebarProvider,
-} from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,8 +18,7 @@ import {
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { IconArrowLeft, IconUpload, IconX, IconCamera, IconSearch } from "@tabler/icons-react"
-import { getCategories } from "@/services/categoryService";
+import { IconArrowLeft, IconPhoto, IconPlus, IconX, IconSearch } from "@tabler/icons-react"
 import { updateCatalogVersion } from "@/services/appConfigService";
 
 import { db, storage } from "@/firebase/config";
@@ -33,6 +28,7 @@ import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { useAppStore } from "@/store/useAppStore";
 import imageCompression from "browser-image-compression";
 import { logAdminAction } from "@/services/loggerService";
+import { ImageFilePreview } from "@/components/dashboard/image-file-preview";
 
 const KISSAN_FRESH_TAGS = ["100% Organic", "Fresh", "Pure", "Farm-to-table", "Locally Sourced", "Vegan", "Gluten-Free"];
 const IMAGE_UPLOAD_METADATA = {
@@ -111,7 +107,9 @@ export default function AddNewProduct() {
 
     const handleImageChange = (e) => {
         if (e.target.files) {
-            setImages(prev => [...prev, ...Array.from(e.target.files)]);
+            const selected = Array.from(e.target.files).filter((file) => file.type.startsWith("image/"));
+            setImages(prev => [...prev, ...selected].slice(0, 6));
+            if (selected.length + images.length > 6) toast.info("A maximum of 6 product images is allowed");
         }
     };
 
@@ -123,7 +121,22 @@ export default function AddNewProduct() {
         e.preventDefault();
 
         if (images.length === 0) {
-            alert("Please select at least one image.");
+            toast.error("Please select at least one image");
+            return;
+        }
+
+        if (hasVariations && variations.length === 0) {
+            toast.error("Add at least one product variation");
+            return;
+        }
+
+        if (!hasVariations && Number(price) > Number(mrp)) {
+            toast.error("Selling price cannot be higher than MRP");
+            return;
+        }
+
+        if (hasVariations && variations.some((variation) => Number(variation.price) > Number(variation.mrp))) {
+            toast.error("A variation selling price cannot be higher than its MRP");
             return;
         }
 
@@ -206,26 +219,19 @@ export default function AddNewProduct() {
             // Update catalog version for cache busting
             await updateCatalogVersion();
 
-            alert("Product Saved Successfully!");
+            toast.success("Product saved successfully");
             router.push(`/dashboard/product-management/${productType}`);
         } catch (error) {
             console.error("Error adding product: ", error);
-            alert("Error saving product: " + error.message);
+            toast.error(error.message || "Failed to save product");
         } finally {
             setUploading(false);
         }
     };
 
     return (
-        <SidebarProvider
-            style={{
-                "--sidebar-width": "calc(var(--spacing) * 72)",
-                "--header-height": "calc(var(--spacing) * 12)"
-            }}>
-            <AppSidebar variant="inset" />
-            <SidebarInset>
-                <SiteHeader />
-                <div className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8 max-w-4xl mx-auto w-full">
+        <>
+                <div className="dashboard-page">
                     <div className="flex items-center gap-4">
                         <Link href={`/dashboard/product-management/${productType}`}>
                             <Button variant="outline" size="icon">
@@ -236,16 +242,15 @@ export default function AddNewProduct() {
                         <h2 className="text-2xl font-bold tracking-tight text-foreground">Add New Product</h2>
                     </div>
 
-                    <Card className="border-0 shadow-lg relative group overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5 opacity-50 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+                    <Card className="relative overflow-visible">
                         <form onSubmit={handleSubmit} className="relative z-10">
-                            <CardHeader className="border-b border-border/50 pb-6 mb-6">
+                            <CardHeader className="border-b border-border/60 pb-5">
                                 <CardTitle className="text-2xl">Product Details</CardTitle>
                                 <CardDescription className="text-base text-muted-foreground/80">
                                     Enter the details of the new product you want to add.
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent className="space-y-8 px-8">
+                            <CardContent className="space-y-8 px-4 py-6 sm:px-6 lg:px-8">
                                 <div className="grid gap-3 group/input">
                                     <Label htmlFor="product-name" className="text-sm font-semibold tracking-wide text-foreground/80 group-focus-within/input:text-primary transition-colors">Product Name <span className="text-red-500">*</span></Label>
                                     <Input
@@ -295,6 +300,7 @@ export default function AddNewProduct() {
                                                     type="number"
                                                     placeholder="0"
                                                     min="0"
+                                                    max="100"
                                                     step="0.01"
                                                     value={discountPercentage}
                                                     onChange={handleDiscountPercentageChange}
@@ -361,6 +367,7 @@ export default function AddNewProduct() {
                                                 size="sm"
                                                 onClick={() => setVariations([...variations, { id: Date.now(), unit: '', unitValue: '1', mrp: '', price: '', discountPercentage: '', image: null, stockCount: 0 }])}
                                             >
+                                                <IconPlus className="mr-1.5 h-4 w-4" />
                                                 Add Variation
                                             </Button>
                                         </div>
@@ -368,18 +375,18 @@ export default function AddNewProduct() {
                                             <p className="text-sm text-muted-foreground text-center py-4">No variations added yet. Click &quot;Add Variation&quot;.</p>
                                         )}
                                         {variations.map((v, index) => (
-                                            <div key={v.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 bg-background border border-border rounded-lg relative group">
+                                            <div key={v.id} className="relative grid grid-cols-1 gap-4 rounded-xl border bg-card p-4 sm:grid-cols-2 lg:grid-cols-4">
                                                 <Button 
                                                     type="button" 
                                                     variant="ghost" 
                                                     size="icon" 
-                                                    className="absolute -top-3 -right-3 h-6 w-6 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    className="absolute right-2 top-2 z-10 h-8 w-8 text-destructive hover:bg-destructive/10"
                                                     onClick={() => setVariations(variations.filter(vari => vari.id !== v.id))}
                                                 >
                                                     <IconX className="h-4 w-4" />
                                                 </Button>
 
-                                                <div className="md:col-span-2 space-y-2">
+                                                <div className="space-y-2">
                                                     <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
                                                     <Input 
                                                         required value={v.unitValue} 
@@ -391,7 +398,7 @@ export default function AddNewProduct() {
                                                         className="h-9 text-sm" 
                                                     />
                                                 </div>
-                                                <div className="md:col-span-2 space-y-2">
+                                                <div className="space-y-2">
                                                     <Label className="text-xs">Unit <span className="text-red-500">*</span></Label>
                                                     <Select 
                                                         required value={v.unit} 
@@ -409,10 +416,10 @@ export default function AddNewProduct() {
                                                         </SelectContent>
                                                     </Select>
                                                 </div>
-                                                <div className="md:col-span-2 space-y-2">
+                                                <div className="space-y-2">
                                                     <Label className="text-xs">MRP (₹) <span className="text-red-500">*</span></Label>
                                                     <Input 
-                                                        type="number" required value={v.mrp} 
+                                                        type="number" min="0" step="0.01" required value={v.mrp}
                                                         onChange={e => {
                                                             const newVars = [...variations];
                                                             const newMrp = e.target.value;
@@ -429,10 +436,10 @@ export default function AddNewProduct() {
                                                         className="h-9 text-sm" 
                                                     />
                                                 </div>
-                                                <div className="md:col-span-2 space-y-2">
+                                                <div className="space-y-2">
                                                     <Label className="text-xs">Disc (%)</Label>
                                                     <Input 
-                                                        type="number" value={v.discountPercentage} 
+                                                        type="number" min="0" max="100" step="0.01" value={v.discountPercentage}
                                                         onChange={e => {
                                                             const newVars = [...variations];
                                                             const newPct = e.target.value;
@@ -449,10 +456,10 @@ export default function AddNewProduct() {
                                                         className="h-9 text-sm" 
                                                     />
                                                 </div>
-                                                <div className="md:col-span-2 space-y-2">
+                                                <div className="space-y-2">
                                                     <Label className="text-xs">Price (₹) <span className="text-red-500">*</span></Label>
                                                     <Input 
-                                                        type="number" required value={v.price} 
+                                                        type="number" min="0" step="0.01" required value={v.price}
                                                         onChange={e => {
                                                             const newVars = [...variations];
                                                             const newPrice = e.target.value;
@@ -469,10 +476,10 @@ export default function AddNewProduct() {
                                                         className="h-9 text-sm" 
                                                     />
                                                 </div>
-                                                <div className="md:col-span-2 space-y-2">
+                                                <div className="space-y-2">
                                                     <Label className="text-xs">Init Stock</Label>
                                                     <Input 
-                                                        type="number" value={v.stockCount} 
+                                                        type="number" min="0" step="1" value={v.stockCount}
                                                         onChange={e => {
                                                             const newVars = [...variations];
                                                             newVars[index].stockCount = e.target.value;
@@ -481,7 +488,7 @@ export default function AddNewProduct() {
                                                         className="h-9 text-sm" 
                                                     />
                                                 </div>
-                                                <div className="md:col-span-2 space-y-2 flex flex-col justify-end">
+                                                <div className="space-y-2 flex flex-col justify-end">
                                                     {v.image ? (
                                                         <div className="relative h-9 w-full rounded border flex items-center justify-between px-2 bg-muted/50 overflow-hidden group/varimg">
                                                             <span className="text-[10px] truncate max-w-[70%]">{v.image.name}</span>
@@ -594,12 +601,12 @@ export default function AddNewProduct() {
 
                                 <div className="grid gap-3 group/input">
                                     <Label htmlFor="images" className="text-sm font-semibold tracking-wide text-foreground/80 group-focus-within/input:text-primary transition-colors">Product Images <span className="text-red-500">*</span></Label>
-                                    <div className="border-2 border-dashed border-primary/30 bg-primary/5 rounded-xl p-10 hover:bg-primary/10 hover:border-primary/50 transition-all duration-300 flex flex-col items-center justify-center gap-3 cursor-pointer relative group/dropzone">
+                                    <div className="relative flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 p-6 text-center transition-colors hover:border-primary/50 hover:bg-primary/10 sm:p-10">
                                         <div className="p-4 bg-background rounded-full shadow-sm border border-border group-hover/dropzone:scale-110 transition-transform duration-300">
-                                            <IconUpload className="h-8 w-8 text-primary" />
+                                            <IconPhoto className="h-8 w-8 text-primary" />
                                         </div>
                                         <span className="text-base text-foreground font-semibold mt-2">Click to upload or drag and drop</span>
-                                        <span className="text-sm text-muted-foreground">Multiple images supported (PNG, JPG)</span>
+                                        <span className="text-sm text-muted-foreground">WebP, PNG or JPG · up to 6 images</span>
                                         <Input
                                             id="images"
                                             type="file"
@@ -617,8 +624,7 @@ export default function AddNewProduct() {
                                                     <li key={idx} className="flex items-center justify-between bg-background p-3 rounded-lg border border-border/50 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
                                                         <div className="flex items-center gap-3 truncate">
                                                             <div className="h-10 w-10 rounded bg-muted/30 overflow-hidden flex items-center justify-center flex-shrink-0 border border-border/50 relative">
-                                                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                                <img src={URL.createObjectURL(img)} alt={img.name} className="object-cover w-full h-full" />
+                                                                <ImageFilePreview file={img} />
                                                             </div>
                                                             <span className="truncate max-w-[80%] font-medium text-sm">{img.name}</span>
                                                         </div>
@@ -632,7 +638,7 @@ export default function AddNewProduct() {
                                     )}
                                 </div>
                             </CardContent>
-                            <CardFooter className="flex justify-between border-t border-border/50 p-8 bg-muted/20 backdrop-blur-sm -mx-0">
+                            <CardFooter className="sticky bottom-0 z-20 flex justify-between gap-3 border-t border-border/70 bg-card/95 p-4 backdrop-blur-xl sm:p-6">
                                 <Link href={`/dashboard/product-management/${productType}`}>
                                     <Button variant="outline" type="button" disabled={uploading}>Cancel</Button>
                                 </Link>
@@ -648,7 +654,6 @@ export default function AddNewProduct() {
                         </form>
                     </Card>
                 </div>
-            </SidebarInset>
-        </SidebarProvider>
+            </>
     );
 }

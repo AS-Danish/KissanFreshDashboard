@@ -32,6 +32,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.debug.example
+!functions/.env.debug.example
 
 # vercel
 .vercel
@@ -44,3 +46,6 @@ admin_app/
 
 # Local reports produced by one-off Firebase migrations
 /.migration-manifests/
+/.generated/
+/.firebase-secret-input
+/.debug-test-credentials.json

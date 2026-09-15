@@ -4,9 +4,18 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:debug": "node scripts/run-debug.mjs dev",
     "build": "next build",
+    "build:debug": "node scripts/run-debug.mjs build",
+    "rules:debug:generate": "node scripts/build-debug-rules.mjs",
+    "data:debug:inspect": "node scripts/copy-firestore-to-development.mjs",
+    "data:debug:copy": "node scripts/copy-firestore-to-development.mjs --apply",
+    "data:debug:verify": "node scripts/copy-firestore-to-development.mjs --verify-destination",
+    "data:debug:seed": "node --env-file=.env.debug.local scripts/seed-development.mjs",
+    "test:debug:wallet-e2e": "node --env-file=.env.debug.local scripts/test-development-wallet-e2e.mjs",
     "test:rules": "firebase emulators:exec --only firestore,storage --project kissanfresh-a72c1 \"node --test tests/firebase-rules.test.mjs\"",
     "start": "next start",
+    "start:debug": "node scripts/run-debug.mjs start",
     "images:migrate:dry-run": "node scripts/optimize-firebase-images.mjs",
     "images:migrate": "node scripts/optimize-firebase-images.mjs --apply",
     "images:migrate:rollback": "node scripts/optimize-firebase-images.mjs --rollback"

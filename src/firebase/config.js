@@ -13,6 +13,13 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
+if (
+  process.env.NEXT_PUBLIC_APP_ENV === "debug" &&
+  (!firebaseConfig.projectId || firebaseConfig.projectId === "kissanfresh-a72c1")
+) {
+  throw new Error("Debug dashboard cannot connect to the production Firebase project.");
+}
+
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 const auth = getAuth(app);

@@ -1,5 +1,6 @@
 {
   "projects": {
-    "default": "kissanfresh-a72c1"
+    "default": "kissanfresh-a72c1",
+    "development": "kissan-fresh-development"
   }
 }

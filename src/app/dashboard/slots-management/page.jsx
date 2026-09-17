@@ -274,10 +274,24 @@ export default function SlotsManagement() {
         try {
             const manualGenerateSlots = httpsCallable(functions, 'manualGenerateSlots');
             const result = await manualGenerateSlots();
-            toast.success(`Successfully generated ${result.data.count} slots.`);
+            const { count, existingCount = 0, activeRiderCount = 0 } = result.data;
+            if (count === 0) {
+                toast.info(`No new slots were needed. ${existingCount} slots already exist for today and tomorrow.`);
+            } else if (activeRiderCount === 0) {
+                toast.warning(`Generated ${count} slots, but no active riders are assigned yet. Add an active rider before customers can book.`);
+            } else {
+                toast.success(`Generated ${count} slots. ${existingCount ? `${existingCount} already existed.` : ''}`);
+            }
         } catch (error) {
             console.error(error);
-            toast.error("Failed to generate slots.");
+            const message = error?.message || "Failed to generate slots.";
+            if (error?.code === "functions/permission-denied") {
+                toast.error("Your debug dashboard account does not have permission to manage slots.");
+            } else if (error?.code === "functions/unauthenticated") {
+                toast.error("Your session has expired. Sign in to the debug dashboard again and retry.");
+            } else {
+                toast.error(message.replace(/^internal\s*/i, ""));
+            }
         } finally {
             setIsGenerating(false);
         }

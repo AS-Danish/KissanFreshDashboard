@@ -16,6 +16,7 @@ import {
   IconShoppingBag,
   IconTags,
   IconUsers,
+  IconWallet,
 } from "@tabler/icons-react"
 
 import { NavDocuments } from "@/components/nav-documents"
@@ -78,6 +79,7 @@ const navigationGroups = [
     label: "Operations",
     items: [
       { title: "Order Management", url: "/dashboard/order-management", icon: IconClipboardList },
+      { title: "Wallet & Refunds", url: "/dashboard/wallet-management", icon: IconWallet },
       { title: "Rider Management", url: "/dashboard/rider-management", icon: IconUsers },
       { title: "Slot Management", url: "/dashboard/slots-management", icon: IconCalendarTime },
       { title: "Offer Notifications", permission: "Offers Notification", url: "/dashboard/offers", icon: IconBell },

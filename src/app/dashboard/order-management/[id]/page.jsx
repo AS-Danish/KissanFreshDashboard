@@ -1,13 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { db } from "@/firebase/config"
 import { doc, getDoc, updateDoc, collection, getDocs, onSnapshot } from "firebase/firestore"
 import { getAvailableSlotsQuery } from "@/services/slotService"
 import { assignRiderToOrderTransaction } from "@/services/orderService"
 import { toast } from "sonner"
-import { useRef } from "react"
 import { logAdminAction } from "@/services/loggerService"
 import { useReactToPrint } from "react-to-print"
 
@@ -24,6 +23,9 @@ import { OrderFinancialSummary } from "@/components/order/order-financial-summar
 import { OrderItemsTable } from "@/components/order/order-items-table"
 import { OrderBillingSummary } from "@/components/order/order-billing-summary"
 import { InvoiceTemplate } from "@/components/order/invoice-template"
+import { DebugWalletRefundCard } from "@/components/order/debug-wallet-refund-card"
+import { OrderAdjustmentHistoryCard } from "@/components/order/order-adjustment-history-card"
+import { isDebugEnvironment } from "@/lib/app-environment"
 
 const getStatusColor = (status) => {
     switch (status?.toUpperCase()) {
@@ -364,6 +366,8 @@ export default function OrderDetailsPage() {
                             <OrderFinancialSummary 
                                 itemsCount={order.items?.reduce((acc, item) => acc + Number(item.quantity || 0), 0)}
                                 paymentMethod={order.orderType || order.paymentMethod}
+                                walletAppliedPaise={order.walletAppliedPaise}
+                                totalAmount={order.totalAmount}
                             />
                         </div>
 
@@ -374,6 +378,11 @@ export default function OrderDetailsPage() {
                             <OrderItemsTable items={order.items} />
                         </div>
 
+                        {/* Adjustments & Refunds History */}
+                        <OrderAdjustmentHistoryCard order={order} />
+
+                        {isDebugEnvironment && <DebugWalletRefundCard order={order} />}
+
                         {/* Billing Summary */}
                         <div className="flex justify-end mt-4">
                             <OrderBillingSummary 
@@ -382,6 +391,9 @@ export default function OrderDetailsPage() {
                                 discount={order.discount}
                                 couponDiscount={order.couponDiscount}
                                 totalAmount={order.totalAmount}
+                                walletAppliedPaise={order.walletAppliedPaise}
+                                adjustedAmountPaise={order.debugAdjustedAmountPaise}
+                                paymentMethod={order.orderType || order.paymentMethod}
                                 hideDownloadButton={true}
                             />
                         </div>

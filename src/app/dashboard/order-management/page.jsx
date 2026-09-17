@@ -507,9 +507,16 @@ export default function OrderManagement() {
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Badge variant="outline" className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-widest ${(order.orderType || order.paymentMethod)?.toUpperCase() === 'COD' || (order.orderType || order.paymentMethod)?.toUpperCase() === 'CASH' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
-                                                        {(order.orderType || order.paymentMethod)?.toUpperCase() === 'COD' || (order.orderType || order.paymentMethod)?.toUpperCase() === 'CASH' ? 'COD' : 'Online'}
-                                                    </Badge>
+                                                    <div className="flex flex-col gap-1">
+                                                        <Badge variant="outline" className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-widest w-fit ${(order.orderType || order.paymentMethod)?.toUpperCase() === 'COD' || (order.orderType || order.paymentMethod)?.toUpperCase() === 'CASH' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                                                            {(order.orderType || order.paymentMethod)?.toUpperCase() === 'COD' || (order.orderType || order.paymentMethod)?.toUpperCase() === 'CASH' ? 'COD' : 'Online'}
+                                                        </Badge>
+                                                        {order.walletAppliedPaise > 0 && (
+                                                            <Badge variant="outline" className="px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border-indigo-200 w-fit">
+                                                                +₹{(order.walletAppliedPaise / 100).toFixed(0)} Wallet
+                                                            </Badge>
+                                                        )}
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex flex-col">
@@ -538,7 +545,14 @@ export default function OrderManagement() {
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <span className="font-bold text-sm text-primary tracking-tight">₹{Number(order.totalAmount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                                                    <div className="flex flex-col">
+                                                        <span className="font-bold text-sm text-primary tracking-tight">₹{Number(order.totalAmount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                                                        {order.debugAdjustedAmountPaise > 0 && (
+                                                            <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                                                                -₹{(order.debugAdjustedAmountPaise / 100).toFixed(0)} refunded
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell className="text-center">
                                                     <Badge variant="outline" className={`${getStatusColor(order.status)} px-3 py-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider justify-center w-[130px] mx-auto`}>

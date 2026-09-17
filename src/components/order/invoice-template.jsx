@@ -136,6 +136,27 @@ export const InvoiceTemplate = forwardRef(({ order, userName }, ref) => {
                             <span className="text-base font-bold text-slate-800">Grand Total</span>
                             <span className="text-lg font-bold text-teal-800">Rs.{order.totalAmount?.toFixed(2) || "0.00"}</span>
                         </div>
+
+                        {(order.walletAppliedPaise || 0) > 0 && (
+                            <div className="flex justify-between text-indigo-700 font-medium">
+                                <span>Paid via Kissan Wallet</span>
+                                <span>-Rs.{((order.walletAppliedPaise || 0) / 100).toFixed(2)}</span>
+                            </div>
+                        )}
+
+                        {(order.walletAppliedPaise || 0) > 0 && (
+                            <div className="flex justify-between items-center text-slate-800 font-bold pt-1 border-t border-slate-200">
+                                <span>Amount Paid via {order.orderType || 'Online'}</span>
+                                <span>Rs.{Math.max(0, (order.totalAmount || 0) - ((order.walletAppliedPaise || 0) / 100)).toFixed(2)}</span>
+                            </div>
+                        )}
+
+                        {(order.debugAdjustedAmountPaise || 0) > 0 && (
+                            <div className="flex justify-between text-emerald-700 font-medium bg-emerald-50 p-1.5 rounded mt-2">
+                                <span>Returned to Wallet</span>
+                                <span>Rs.{((order.debugAdjustedAmountPaise || 0) / 100).toFixed(2)}</span>
+                            </div>
+                        )}
                         
                         {totalDiscount > 0 && (
                             <div className="bg-green-50 px-2 py-1.5 rounded text-center border border-green-100 mt-2">

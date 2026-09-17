@@ -7,6 +7,15 @@ const db = admin.firestore();
 const { setGlobalOptions } = require("firebase-functions/v2");
 setGlobalOptions({ region: "us-central1" });
 
+const debugWalletFunctions = require("./debug-wallet")({ admin, db });
+exports.getDebugWallet = debugWalletFunctions.getDebugWallet;
+exports.previewDebugOrderAdjustment = debugWalletFunctions.previewDebugOrderAdjustment;
+exports.createDebugOrderAdjustment = debugWalletFunctions.createDebugOrderAdjustment;
+exports.refundWalletToBank = debugWalletFunctions.refundWalletToBank;
+exports.listDebugWallets = debugWalletFunctions.listDebugWallets;
+exports.getDebugWalletDetails = debugWalletFunctions.getDebugWalletDetails;
+exports.getDebugOrderAdjustments = debugWalletFunctions.getDebugOrderAdjustments;
+
 /**
  * Haversine formula to calculate distance between two points in km.
  * @param {number} lat1 Latitude of point 1.
@@ -37,7 +46,16 @@ async function generateSlotsCore(db, admin) {
     } else {
       activeHours = Array.from({length: 16}, (_, i) => i + 6); // 6 to 21
     }
-    activeHours.sort((a, b) => a - b);
+    // Firestore configuration is user-editable, so normalise it before using it
+    // in document IDs and date construction. Invalid values used to make the
+    // callable fail with a generic "internal" error in the dashboard.
+    activeHours = [...new Set(activeHours
+      .map((hour) => Number(hour))
+      .filter((hour) => Number.isInteger(hour) && hour >= 0 && hour <= 23))]
+      .sort((a, b) => a - b);
+    if (activeHours.length === 0) {
+      throw new Error("Choose at least one valid delivery hour (00:00–23:00) before generating slots.");
+    }
 
     const ridersQuery = db.collection("riders")
       .where("status", "==", "ACTIVE");
@@ -57,13 +75,23 @@ async function generateSlotsCore(db, admin) {
       day: "2-digit",
     });
 
+    // `Intl.DateTimeFormat(...).format()` is locale/ICU dependent. Construct
+    // the ID explicitly so slots always use the expected YYYY-MM-DD_HH form.
+    const formatDateInIndia = (date) => {
+      const parts = Object.fromEntries(formatter.formatToParts(date)
+        .filter(({ type }) => type !== "literal")
+        .map(({ type, value }) => [type, value]));
+      return `${parts.year}-${parts.month}-${parts.day}`;
+    };
+
     let slotsCreated = 0;
+    let existingSlots = 0;
 
     for (let dayOffset = 0; dayOffset <= 1; dayOffset++) {
       const targetDate = new Date();
       const dayMs = dayOffset * 24 * 60 * 60 * 1000;
       targetDate.setTime(targetDate.getTime() + dayMs);
-      const dateString = formatter.format(targetDate);
+      const dateString = formatDateInIndia(targetDate);
 
       console.log(`Generating slots for date: ${dateString}`);
 
@@ -74,6 +102,7 @@ async function generateSlotsCore(db, admin) {
         const slotRef = db.collection("slots").doc(slotId);
         const slotSnap = await slotRef.get();
         if (slotSnap.exists) {
+          existingSlots++;
           continue; // Skip if already created
         }
 
@@ -121,7 +150,12 @@ async function generateSlotsCore(db, admin) {
     }
     
     console.log(`Successfully generated ${slotsCreated} slots.`);
-    return { success: true, count: slotsCreated };
+    return {
+      success: true,
+      count: slotsCreated,
+      existingCount: existingSlots,
+      activeRiderCount: activeRiders.length,
+    };
   } catch (error) {
     console.error("Error generating daily slots:", error);
     throw error;
@@ -199,8 +233,8 @@ exports.processimmediaterefund = require("firebase-functions/v2/firestore")
       });
     }
 
-    const rKey = process.env.RAZORPAY_KEY;
-    const rSecret = process.env.RAZORPAY_SECRET;
+    const rKey = (process.env.RAZORPAY_KEY || "").trim();
+    const rSecret = (process.env.RAZORPAY_SECRET || "").trim();
 
     if (!rKey || !rSecret) {
       console.error("Razorpay keys not configured in Firebase Secrets.");
@@ -217,8 +251,6 @@ exports.processimmediaterefund = require("firebase-functions/v2/firestore")
     });
 
     try {
-      console.log(`Checking status for Payment ID: ${paymentId}`);
-
       const payment = await razorpay.payments.fetch(paymentId);
       console.log(`Current Payment Status: ${payment.status}`);
 
@@ -280,6 +312,10 @@ exports.createOrder = require("firebase-functions/v2/https")
       const auth = request.auth;
       const { HttpsError } = require("firebase-functions/v2/https");
       const orderData = data.order;
+      const runtimeProjectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || admin.app().options.projectId;
+      const isDebugWalletRuntime = process.env.KISSAN_ENV === "debug" &&
+        runtimeProjectId && runtimeProjectId !== "kissanfresh-a72c1";
+      const requestedWalletPaise = Number.parseInt(orderData?.walletAppliedPaise, 10) || 0;
 
       if (!auth) {
         throw new HttpsError("unauthenticated",
@@ -320,6 +356,23 @@ exports.createOrder = require("firebase-functions/v2/https")
           const userRef = db.collection("users").doc(auth.uid);
           const userSnap = await transaction.get(userRef);
           const customerName = userSnap.exists ? (userSnap.data()?.name || userSnap.data()?.displayName || "Guest") : "Guest";
+
+          let walletRef = null;
+          let walletData = null;
+          if (requestedWalletPaise > 0) {
+            if (!isDebugWalletRuntime) {
+              throw new HttpsError("failed-precondition", "Wallet checkout is available only in the debug environment.");
+            }
+            if (requestedWalletPaise > Math.round(Number(orderData.totalAmount || 0) * 100)) {
+              throw new HttpsError("invalid-argument", "Wallet amount exceeds the order total.");
+            }
+            walletRef = db.collection("debug_wallet_accounts").doc(auth.uid);
+            const walletSnap = await transaction.get(walletRef);
+            walletData = walletSnap.data() || {};
+            if ((Number(walletData.balancePaise) || 0) < requestedWalletPaise) {
+              throw new HttpsError("failed-precondition", "Wallet balance changed. Refresh checkout and try again.");
+            }
+          }
 
           let couponDoc = null;
           if (orderData.couponCode) {
@@ -489,8 +542,10 @@ exports.createOrder = require("firebase-functions/v2/https")
           transaction.update(selectedRiderDoc.ref,
             { assignedOrders: newRiderAssignedOrders });
 
+          const cleanOrderData = { ...orderData };
+          delete cleanOrderData.walletAppliedPaise;
           const enrichedOrderData = {
-            ...orderData,
+            ...cleanOrderData,
             id: shortId, // use new short ID
             userId: auth.uid,
             slotId: selectedSlotDoc.id,
@@ -499,9 +554,25 @@ exports.createOrder = require("firebase-functions/v2/https")
             customerName: customerName,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             assignedAt: admin.firestore.FieldValue.serverTimestamp(),
+            ...(requestedWalletPaise > 0 ? { walletAppliedPaise: requestedWalletPaise } : {}),
           };
 
           transaction.set(orderRef, enrichedOrderData);
+          if (walletRef) {
+            transaction.update(walletRef, {
+              balancePaise: (Number(walletData.balancePaise) || 0) - requestedWalletPaise,
+              lifetimeDebitPaise: (Number(walletData.lifetimeDebitPaise) || 0) + requestedWalletPaise,
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+            transaction.create(db.collection("debug_wallet_entries").doc(`order_${shortId}`), {
+              userId: auth.uid,
+              orderId: shortId,
+              type: "ORDER_DEBIT",
+              amountPaise: -requestedWalletPaise,
+              currency: "INR",
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+          }
 
           return enrichedOrderData;
         });

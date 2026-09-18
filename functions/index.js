@@ -215,7 +215,8 @@ exports.processimmediaterefund = require("firebase-functions/v2/firestore")
     const data = snapshot.data();
     const docId = event.params.docId;
 
-    if (data.status !== "paid_but_stock_failed" ||
+    const eligibleStatuses = ["paid_but_stock_failed", "paid_but_failed_before_creation"];
+    if (!eligibleStatuses.includes(data.status) ||
       data.refundStatus === "processed") {
       console.log(`Document ${docId} skipped: Status is ${data.status}, ` +
         `RefundStatus is ${data.refundStatus}`);

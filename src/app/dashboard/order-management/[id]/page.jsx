@@ -25,7 +25,6 @@ import { OrderBillingSummary } from "@/components/order/order-billing-summary"
 import { InvoiceTemplate } from "@/components/order/invoice-template"
 import { DebugWalletRefundCard } from "@/components/order/debug-wallet-refund-card"
 import { OrderAdjustmentHistoryCard } from "@/components/order/order-adjustment-history-card"
-import { isDebugEnvironment } from "@/lib/app-environment"
 
 const getStatusColor = (status) => {
     switch (status?.toUpperCase()) {
@@ -381,7 +380,7 @@ export default function OrderDetailsPage() {
                         {/* Adjustments & Refunds History */}
                         <OrderAdjustmentHistoryCard order={order} />
 
-                        {isDebugEnvironment && <DebugWalletRefundCard order={order} />}
+                        <DebugWalletRefundCard order={order} />
 
                         {/* Billing Summary */}
                         <div className="flex justify-end mt-4">

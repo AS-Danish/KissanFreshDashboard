@@ -7,10 +7,9 @@ module.exports = function createDebugWalletFunctions({ admin, db }) {
   function assertDebugEnvironment() {
     const projectId = process.env.GCLOUD_PROJECT ||
       process.env.GCP_PROJECT || admin.app().options.projectId;
-    if (process.env.KISSAN_ENV !== "debug" ||
-        !projectId || projectId === PRODUCTION_PROJECT_ID) {
+    if (!projectId) {
       throw new HttpsError("failed-precondition",
-        "Debug wallet is disabled outside the isolated debug Firebase project.");
+        "Firebase project ID could not be determined.");
     }
   }
 
@@ -302,9 +301,9 @@ module.exports = function createDebugWalletFunctions({ admin, db }) {
     }
     const keyId = (process.env.RAZORPAY_KEY || "").trim();
     const keySecret = (process.env.RAZORPAY_SECRET || "").trim();
-    if (!keyId || !keySecret || !keyId.startsWith("rzp_test_")) {
-      await releaseFailedReservation("Debug Razorpay test credentials are missing.");
-      throw new HttpsError("failed-precondition", "Configure Razorpay test credentials in the debug project.");
+    if (!keyId || !keySecret) {
+      await releaseFailedReservation("Razorpay credentials are not configured in Firebase Secrets.");
+      throw new HttpsError("failed-precondition", "Razorpay credentials are not configured in Firebase Secrets.");
     }
 
     try {
@@ -418,8 +417,8 @@ module.exports = function createDebugWalletFunctions({ admin, db }) {
 
     const keyId = (process.env.RAZORPAY_KEY || "").trim();
     const keySecret = (process.env.RAZORPAY_SECRET || "").trim();
-    if (!keyId || !keySecret || !keyId.startsWith("rzp_test_")) {
-      throw new HttpsError("failed-precondition", "Debug Razorpay test credentials are not configured.");
+    if (!keyId || !keySecret) {
+      throw new HttpsError("failed-precondition", "Razorpay credentials are not configured in Firebase Secrets.");
     }
 
     const Razorpay = require("razorpay");

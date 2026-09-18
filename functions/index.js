@@ -312,9 +312,6 @@ exports.createOrder = require("firebase-functions/v2/https")
       const auth = request.auth;
       const { HttpsError } = require("firebase-functions/v2/https");
       const orderData = data.order;
-      const runtimeProjectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || admin.app().options.projectId;
-      const isDebugWalletRuntime = process.env.KISSAN_ENV === "debug" &&
-        runtimeProjectId && runtimeProjectId !== "kissanfresh-a72c1";
       const requestedWalletPaise = Number.parseInt(orderData?.walletAppliedPaise, 10) || 0;
 
       if (!auth) {
@@ -360,9 +357,6 @@ exports.createOrder = require("firebase-functions/v2/https")
           let walletRef = null;
           let walletData = null;
           if (requestedWalletPaise > 0) {
-            if (!isDebugWalletRuntime) {
-              throw new HttpsError("failed-precondition", "Wallet checkout is available only in the debug environment.");
-            }
             if (requestedWalletPaise > Math.round(Number(orderData.totalAmount || 0) * 100)) {
               throw new HttpsError("invalid-argument", "Wallet amount exceeds the order total.");
             }

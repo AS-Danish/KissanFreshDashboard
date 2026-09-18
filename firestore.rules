@@ -225,6 +225,24 @@ service cloud.firestore {
       allow delete: if signedIn();
     }
 
+    // Wallet data. All mutations use trusted Cloud Functions.
+    match /debug_wallet_accounts/{userId} {
+      allow read: if owns(userId) || can('Order Management');
+      allow write: if false;
+    }
+
+    match /debug_wallet_entries/{entryId} {
+      allow get, list: if signedIn() && resource.data.userId == request.auth.uid
+        || can('Order Management');
+      allow write: if false;
+    }
+
+    match /debug_order_adjustments/{adjustmentId} {
+      allow get, list: if signedIn() && resource.data.userId == request.auth.uid
+        || can('Order Management');
+      allow write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

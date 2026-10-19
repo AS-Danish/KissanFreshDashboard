@@ -901,6 +901,135 @@ exports.syncProductToAlgolia = require("firebase-functions/v2/firestore")
   });
 
 /**
+ * Helper to normalize dates/timestamps to ISO string for Algolia.
+ * @param {*} val Date, Timestamp, or date string/number.
+ * @return {string|null} ISO date string or null.
+ */
+function normalizeDateToIso(val) {
+  if (!val) return null;
+  if (typeof val.toDate === "function") return val.toDate().toISOString();
+  if (typeof val.toMillis === "function") return new Date(val.toMillis()).toISOString();
+  if (val instanceof Date) return val.toISOString();
+  if (typeof val === "number") return new Date(val).toISOString();
+  if (typeof val === "string") {
+    const parsed = Date.parse(val);
+    return isNaN(parsed) ? val : new Date(parsed).toISOString();
+  }
+  return null;
+}
+
+/**
+ * Helper to normalize timestamps to epoch milliseconds for Algolia.
+ * @param {*} val Date, Timestamp, or date string/number.
+ * @return {number|null} Milliseconds timestamp or null.
+ */
+function normalizeTimestampToMillis(val) {
+  if (!val) return null;
+  if (typeof val.toMillis === "function") return val.toMillis();
+  if (typeof val.toDate === "function") return val.toDate().getTime();
+  if (val instanceof Date) return val.getTime();
+  if (typeof val === "number") return val;
+  if (typeof val === "string") {
+    const parsed = Date.parse(val);
+    return isNaN(parsed) ? null : parsed;
+  }
+  return null;
+}
+
+/**
+ * Sync Firestore Orders to Algolia Index
+ */
+exports.syncOrderToAlgolia = require("firebase-functions/v2/firestore")
+  .onDocumentWritten({
+    document: "orders/{orderId}",
+    secrets: ["ALGOLIA_APP_ID", "ALGOLIA_ADMIN_API_KEY"],
+  }, async (event) => {
+    const algoliasearch = require("algoliasearch");
+
+    const appId = process.env.ALGOLIA_APP_ID;
+    const adminKey = process.env.ALGOLIA_ADMIN_API_KEY;
+
+    if (!appId || !adminKey) {
+      console.error("Algolia credentials are not configured in Firebase Secrets.");
+      return null;
+    }
+
+    const client = algoliasearch(appId, adminKey);
+    const index = client.initIndex("orders");
+    const orderId = event.params.orderId;
+
+    // Document was deleted
+    if (!event.data.after.exists) {
+      try {
+        await index.deleteObject(orderId);
+        console.log(`Successfully deleted order ${orderId} from Algolia`);
+      } catch (error) {
+        console.error(`Error deleting order ${orderId} from Algolia`, error);
+      }
+      return null;
+    }
+
+    // Document was created or updated
+    const data = event.data.after.data();
+    if (!data) return null;
+
+    const orderDate = normalizeDateToIso(data.orderDate) ||
+      normalizeDateToIso(data.createdAt) ||
+      new Date().toISOString();
+
+    const items = Array.isArray(data.items) ? data.items.map((item) => ({
+      productId: item.productId || item.id || null,
+      title: item.title || item.name || "",
+      price: Number(item.price) || 0,
+      mrp: Number(item.mrp) || 0,
+      quantity: Number(item.quantity) || 1,
+      unit: item.unit || "",
+      image: item.image || (item.images && item.images[0]) || null,
+    })) : [];
+
+    const algoliaObject = {
+      objectID: orderId,
+      id: orderId,
+      path: `orders/${orderId}`,
+      orderNumber: data.orderNumber || orderId,
+      orderDate: orderDate,
+      userId: data.userId || null,
+      customerName: data.customerName || null,
+      status: (data.status || "PENDING").toUpperCase(),
+      orderType: (data.orderType || data.paymentMethod || "ONLINE").toUpperCase(),
+      paymentMethod: (data.paymentMethod || data.orderType || "ONLINE").toUpperCase(),
+      paymentStatus: (data.paymentStatus || "pending").toLowerCase(),
+      totalAmount: data.totalAmount != null ? Number(data.totalAmount) : 0,
+      subtotal: data.subtotal != null ? Number(data.subtotal) : 0,
+      deliveryFee: data.deliveryFee != null ? Number(data.deliveryFee) : 0,
+      discount: data.discount != null ? Number(data.discount) : 0,
+      couponDiscount: data.couponDiscount != null ? Number(data.couponDiscount) : 0,
+      walletAppliedPaise: Number(data.walletAppliedPaise) || 0,
+      debugAdjustedAmountPaise: Number(data.debugAdjustedAmountPaise) || 0,
+      slotId: data.slotId || null,
+      riderId: data.riderId || null,
+      deliveryInstruction: data.deliveryInstruction || null,
+      deliveryAddress: data.deliveryAddress || data.address || null,
+      phoneNumber: data.phoneNumber || data.phone || data.userPhone || null,
+      latitude: data.latitude != null ? Number(data.latitude) : null,
+      longitude: data.longitude != null ? Number(data.longitude) : null,
+      items: items,
+      createdAt: normalizeTimestampToMillis(data.createdAt) || Date.now(),
+      updatedAt: normalizeTimestampToMillis(data.updatedAt) || Date.now(),
+      assignedAt: normalizeTimestampToMillis(data.assignedAt),
+    };
+
+    try {
+      await index.saveObject(algoliaObject);
+      console.log(`Successfully synced order ${orderId} to Algolia`);
+    } catch (error) {
+      console.error(`Error syncing order ${orderId} to Algolia`, error);
+    }
+
+    return null;
+  });
+
+/**
  * Triggered when a new offer notification is created.
  * If it's marked as instant, send it immediately.
  */

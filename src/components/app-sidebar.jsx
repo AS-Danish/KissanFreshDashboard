@@ -38,6 +38,7 @@ const navigationGroups = [
     label: "Overview",
     items: [
       { title: "Dashboard", url: "/dashboard", icon: IconDashboard },
+      { title: "Customers", url: "/dashboard/customer-management", icon: IconUsers, adminOnly: true },
     ],
   },
   {

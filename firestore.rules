@@ -212,7 +212,8 @@ service cloud.firestore {
         && request.resource.data.totalAmount > 0
         && request.resource.data.currency == 'INR'
         && request.resource.data.timestamp == request.time;
-      allow read, update, delete: if false;
+      allow read: if can('Order Management');
+      allow update, delete: if false;
     }
 
     match /maps_cache/{cacheId} {

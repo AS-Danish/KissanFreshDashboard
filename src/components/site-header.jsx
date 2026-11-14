@@ -13,6 +13,7 @@ const titleOverrides = {
   "product-management": "Products",
   "stock-management": "Inventory",
   "order-management": "Orders",
+  "failed-orders": "Failed Orders & Refunds",
   "rider-management": "Riders",
   "slots-management": "Delivery slots",
   "category-management": "Categories",

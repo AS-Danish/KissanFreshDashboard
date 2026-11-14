@@ -10,6 +10,7 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -142,6 +143,30 @@ test("failed payment records require strict ownership and immutable pending stat
   await assertFails(addDoc(collection(customerDb, "failed_orders"), {
     ...validFailure,
     userId: "customer-2",
+  }));
+});
+
+test("only order management staff can read failed payments and staff cannot change refunds", async () => {
+  await environment.withSecurityRulesDisabled(async (context) => {
+    const database = context.firestore();
+    await setDoc(doc(database, "users/order-manager"), {
+      role: "MANAGEMENT",
+      permissions: { "Order Management": true },
+    });
+    await setDoc(doc(database, "failed_orders/staff-review"), {
+      userId: "customer-1", paymentId: "pay_staff_test", refundStatus: "failed",
+      timestamp: serverTimestamp(),
+    });
+  });
+
+  const staffDb = environment.authenticatedContext("order-manager").firestore();
+  const unrelatedDb = environment.authenticatedContext("manager-1").firestore();
+  const customerDb = environment.authenticatedContext("customer-1").firestore();
+  await assertSucceeds(getDocs(collection(staffDb, "failed_orders")));
+  await assertFails(getDocs(collection(unrelatedDb, "failed_orders")));
+  await assertFails(getDoc(doc(customerDb, "failed_orders/staff-review")));
+  await assertFails(updateDoc(doc(staffDb, "failed_orders/staff-review"), {
+    refundStatus: "processed",
   }));
 });
 

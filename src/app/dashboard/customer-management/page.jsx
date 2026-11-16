@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { collection, onSnapshot } from "firebase/firestore"
 import { IconMail, IconMapPin, IconPhone, IconSearch, IconUserCheck, IconUsers } from "@tabler/icons-react"
-import { db } from "@/firebase/config"
+import { app, db } from "@/firebase/config"
 import { useAppStore } from "@/store/useAppStore"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -18,6 +18,29 @@ import {
 } from "@/components/ui/table"
 
 const CUSTOMER_ROLES = new Set(["USER", "CUSTOMER"])
+const registrationDateFormatter = new Intl.DateTimeFormat("en-IN", {
+  dateStyle: "medium",
+  timeZone: "Asia/Kolkata",
+})
+
+function getRegistrationTime(createdAt) {
+  // The mobile app writes local ISO dates without a timezone.
+  const time = typeof createdAt === "string"
+    ? Date.parse(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(createdAt)
+      ? `${createdAt}+05:30`
+      : createdAt)
+    : createdAt?.toMillis?.()
+
+  return Number.isFinite(time) ? time : null
+}
+
+function readLastViewed(storageKey) {
+  try {
+    return Number(window.localStorage.getItem(storageKey)) || null
+  } catch {
+    return null
+  }
+}
 
 function formatAddress(address) {
   if (!address) return ""
@@ -63,7 +86,12 @@ function CustomerIdentity({ customer }) {
         {getInitials(customer.name)}
       </div>
       <div className="min-w-0">
-        <p className="truncate font-semibold text-foreground">{customer.name || "Unnamed customer"}</p>
+        <div className="flex items-center gap-2">
+          <p className="truncate font-semibold text-foreground">{customer.name || "Unnamed customer"}</p>
+          {customer.isNew && (
+            <Badge className="shrink-0 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">New</Badge>
+          )}
+        </div>
         {customer.email ? (
           <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground"><IconMail className="size-3 shrink-0" />{customer.email}</p>
         ) : (
@@ -74,9 +102,16 @@ function CustomerIdentity({ customer }) {
   )
 }
 
+function RegistrationDate({ time }) {
+  return time === null
+    ? <span className="text-muted-foreground">Date unavailable</span>
+    : <time dateTime={new Date(time).toISOString()}>{registrationDateFormatter.format(time)}</time>
+}
+
 export default function CustomerManagementPage() {
   const router = useRouter()
-  const { userRole, authLoading } = useAppStore()
+  const { user, userRole, authLoading } = useAppStore()
+  const adminId = user?.uid
   const [customers, setCustomers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -88,18 +123,53 @@ export default function CustomerManagementPage() {
       router.replace("/dashboard")
       return
     }
+    if (!adminId) return
+
+    const storageKey = `customer-management:last-viewed:${app.options.projectId}:${adminId}`
+    // Keep the cutoff fixed during the visit so the badges stay visible.
+    const cutoff = readLastViewed(storageKey) ?? Date.now()
+    let latestServerSnapshotAt = null
+
+    function saveLastViewed() {
+      if (document.visibilityState !== "visible" || latestServerSnapshotAt === null) return
+
+      try {
+        if (latestServerSnapshotAt > (readLastViewed(storageKey) ?? 0)) {
+          window.localStorage.setItem(storageKey, String(latestServerSnapshotAt))
+        }
+      } catch {
+        // The directory is still usable if browser storage is unavailable.
+      }
+    }
 
     const unsubscribe = onSnapshot(
       collection(db, "users"),
+      { includeMetadataChanges: true },
       (snapshot) => {
         const nextCustomers = snapshot.docs
-          .map((document) => ({ id: document.id, ...document.data() }))
-          .filter((user) => CUSTOMER_ROLES.has(String(user.role || "").toUpperCase()))
-          .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")))
+          .map((document) => ({ ...document.data(), id: document.id }))
+          .filter((customer) => CUSTOMER_ROLES.has(String(customer.role || "").toUpperCase()))
+          .map((customer) => {
+            const registrationTime = getRegistrationTime(customer.createdAt)
+            return {
+              ...customer,
+              registrationTime,
+              isNew: registrationTime !== null && registrationTime > cutoff,
+            }
+          })
+          .sort((a, b) => (
+            (b.registrationTime ?? -Infinity) - (a.registrationTime ?? -Infinity) ||
+            String(a.name || "").localeCompare(String(b.name || "")) ||
+            a.id.localeCompare(b.id)
+          ))
 
         setCustomers(nextCustomers)
         setError("")
         setLoading(false)
+        if (!snapshot.metadata.fromCache) {
+          latestServerSnapshotAt = Date.now()
+          saveLastViewed()
+        }
       },
       (snapshotError) => {
         console.error("Unable to load customers:", snapshotError)
@@ -108,8 +178,12 @@ export default function CustomerManagementPage() {
       },
     )
 
-    return () => unsubscribe()
-  }, [authLoading, router, userRole])
+    document.addEventListener("visibilitychange", saveLastViewed)
+    return () => {
+      unsubscribe()
+      document.removeEventListener("visibilitychange", saveLastViewed)
+    }
+  }, [adminId, authLoading, router, userRole])
 
   const filteredCustomers = useMemo(() => {
     const term = search.trim().toLowerCase()
@@ -186,23 +260,25 @@ export default function CustomerManagementPage() {
             <TableHeader className="bg-muted/50">
               <TableRow>
                 <TableHead className="min-w-64 px-6 font-semibold text-foreground">Customer</TableHead>
+                <TableHead className="min-w-36 font-semibold text-foreground">Registered</TableHead>
                 <TableHead className="min-w-48 font-semibold text-foreground">Phone number</TableHead>
                 <TableHead className="min-w-80 px-6 font-semibold text-foreground">Preferred location</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={3} className="py-10 text-center text-muted-foreground">Loading customers...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={4} className="py-10 text-center text-muted-foreground">Loading customers...</TableCell></TableRow>
               ) : error ? (
-                <TableRow><TableCell colSpan={3} className="py-10 text-center text-destructive">{error}</TableCell></TableRow>
+                <TableRow><TableCell colSpan={4} className="py-10 text-center text-destructive">{error}</TableCell></TableRow>
               ) : filteredCustomers.length === 0 ? (
-                <TableRow><TableCell colSpan={3} className="py-10 text-center text-muted-foreground">{search ? "No customers match your search." : "No customer accounts found."}</TableCell></TableRow>
+                <TableRow><TableCell colSpan={4} className="py-10 text-center text-muted-foreground">{search ? "No customers match your search." : "No customer accounts found."}</TableCell></TableRow>
               ) : (
                 filteredCustomers.map((customer) => {
                   const location = getDefaultLocation(customer)
                   return (
                     <TableRow key={customer.id} className="hover:bg-primary/[0.01]">
                       <TableCell className="px-6 py-4"><CustomerIdentity customer={customer} /></TableCell>
+                      <TableCell className="whitespace-nowrap"><RegistrationDate time={customer.registrationTime} /></TableCell>
                       <TableCell>
                         {customer.phoneNumber ? (
                           <div className="flex items-center gap-2 whitespace-nowrap"><IconPhone className="size-4 text-muted-foreground" />{customer.phoneNumber}</div>
@@ -232,6 +308,7 @@ export default function CustomerManagementPage() {
             return (
               <article key={customer.id} className="space-y-4 p-5">
                 <CustomerIdentity customer={customer} />
+                <p className="text-xs text-muted-foreground">Registered <RegistrationDate time={customer.registrationTime} /></p>
                 <div className="grid gap-3 text-sm">
                   <div className="flex items-start gap-2.5"><span className="mt-0.5 rounded-md bg-muted p-1.5 text-muted-foreground"><IconPhone className="size-3.5" /></span><div><p className="text-xs font-medium text-muted-foreground">Phone number</p><p className="mt-0.5 font-medium">{customer.phoneNumber || "Not provided"}</p></div></div>
                   <div className="flex items-start gap-2.5"><span className="mt-0.5 rounded-md bg-muted p-1.5 text-muted-foreground"><IconMapPin className="size-3.5" /></span><div><p className="text-xs font-medium text-muted-foreground">Preferred location</p><p className="mt-0.5 leading-5">{location || "No saved location"}</p></div></div>

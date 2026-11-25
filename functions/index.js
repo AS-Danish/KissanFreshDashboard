@@ -12,9 +12,6 @@ exports.getDebugWallet = debugWalletFunctions.getDebugWallet;
 exports.previewDebugOrderAdjustment = debugWalletFunctions.previewDebugOrderAdjustment;
 exports.createDebugOrderAdjustment = debugWalletFunctions.createDebugOrderAdjustment;
 exports.refundWalletToBank = debugWalletFunctions.refundWalletToBank;
-exports.listDebugWallets = debugWalletFunctions.listDebugWallets;
-exports.getDebugWalletDetails = debugWalletFunctions.getDebugWalletDetails;
-exports.getDebugOrderAdjustments = debugWalletFunctions.getDebugOrderAdjustments;
 
 /**
  * Haversine formula to calculate distance between two points in km.
@@ -1088,13 +1085,15 @@ exports.onInstantOfferCreated = require("firebase-functions/v2/firestore")
 
 /**
  * Scheduled function to process scheduled offers.
- * Runs every 4 hours.
+ * Runs every minute.
  */
 exports.processScheduledOffers = require("firebase-functions/v2/scheduler")
   .onSchedule({
-    schedule: "0 */4 * * *",
+    schedule: "* * * * *",
     timeZone: "Asia/Kolkata",
     retryCount: 3,
+    maxInstances: 1,
+    concurrency: 1,
   }, async (event) => {
     const now = admin.firestore.Timestamp.now();
     try {
@@ -1102,14 +1101,13 @@ exports.processScheduledOffers = require("firebase-functions/v2/scheduler")
         .where("status", "==", "PENDING")
         .where("isInstant", "==", false)
         .where("scheduledFor", "<=", now)
+        .limit(100)
         .get();
 
       if (pendingOffersSnap.empty) {
         console.log("No pending scheduled offers found.");
         return null;
       }
-
-      const batch = db.batch();
 
       for (const doc of pendingOffersSnap.docs) {
         const data = doc.data();
@@ -1145,24 +1143,25 @@ exports.processScheduledOffers = require("firebase-functions/v2/scheduler")
 
         try {
           await admin.messaging().send(message);
-          console.log(`✅ Scheduled offer sent for doc ${doc.id}`);
-          batch.update(doc.ref, {
-            status: "SENT",
-            sentAt: admin.firestore.FieldValue.serverTimestamp(),
-          });
         } catch (error) {
           console.error(`🚨 Error sending scheduled offer ${doc.id}:`, error);
-          batch.update(doc.ref, {
+          await doc.ref.update({
             status: "FAILED",
             error: error.message,
           });
+          continue;
         }
+        await doc.ref.update({
+          status: "SENT",
+          sentAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        console.log(`✅ Scheduled offer sent for doc ${doc.id}`);
       }
 
-      await batch.commit();
       console.log(`Processed ${pendingOffersSnap.size} scheduled offers.`);
     } catch (error) {
       console.error("Error in processScheduledOffers:", error);
+      throw error;
     }
     return null;
   });

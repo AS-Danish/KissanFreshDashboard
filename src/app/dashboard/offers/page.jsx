@@ -22,6 +22,8 @@ export default function OffersNotificationPage() {
   const [isInstant, setIsInstant] = useState(true)
   const [scheduledFor, setScheduledFor] = useState("")
   const [loading, setLoading] = useState(false)
+  const now = new Date()
+  const localTime = new Date(now.getTime() - now.getTimezoneOffset() * 60_000)
 
   const handleImageChange = (e) => {
     if (e.target.files[0]) {
@@ -38,8 +40,9 @@ export default function OffersNotificationPage() {
       return
     }
     
-    if (!isInstant && !scheduledFor) {
-      toast.error("Please provide a scheduled time.")
+    const scheduledDate = isInstant ? null : new Date(scheduledFor)
+    if (scheduledDate && (!Number.isFinite(scheduledDate.getTime()) || scheduledDate.getTime() <= Date.now())) {
+      toast.error("Please choose a scheduled time in the future.")
       return
     }
 
@@ -73,12 +76,7 @@ export default function OffersNotificationPage() {
         isInstant,
         status: "PENDING",
         createdAt: serverTimestamp(),
-      }
-
-      if (!isInstant) {
-        offerData.scheduledFor = Timestamp.fromDate(new Date(scheduledFor))
-      } else {
-        offerData.scheduledFor = serverTimestamp()
+        scheduledFor: scheduledDate ? Timestamp.fromDate(scheduledDate) : serverTimestamp(),
       }
 
       await addDoc(collection(db, "offer_notifications"), offerData)
@@ -212,11 +210,11 @@ export default function OffersNotificationPage() {
                           value={scheduledFor}
                           onChange={(e) => setScheduledFor(e.target.value)}
                           className="h-12 text-base max-w-md"
-                          min={new Date().toISOString().slice(0, 16)}
+                          min={localTime.toISOString().slice(0, 16)}
                           required={!isInstant}
                         />
                         <p className="text-sm text-muted-foreground">
-                          Note: Scheduled notifications are processed in 4-hour intervals.
+                          Uses your device’s time zone. The server checks for due offers every minute.
                         </p>
                       </div>
                     )}

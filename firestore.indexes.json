@@ -1,0 +1,14 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "offer_notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isInstant", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "scheduledFor", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

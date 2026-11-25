@@ -567,90 +567,10 @@ module.exports = function createDebugWalletFunctions({ admin, db }) {
     };
   });
 
-  const listDebugWallets = onCall(async (request) => {
-    assertDebugEnvironment();
-    await assertOrderManager(request.auth);
-
-    const snapshot = await db.collection("debug_wallet_accounts").limit(100).get();
-    const wallets = [];
-
-    for (const doc of snapshot.docs) {
-      const data = doc.data() || {};
-      const userDoc = await db.collection("users").doc(doc.id).get();
-      const userData = userDoc.data() || {};
-      wallets.push({
-        userId: doc.id,
-        balancePaise: Number(data.balancePaise) || 0,
-        lifetimeCreditPaise: Number(data.lifetimeCreditPaise) || 0,
-        lifetimeDebitPaise: Number(data.lifetimeDebitPaise) || 0,
-        updatedAt: data.updatedAt ? data.updatedAt.toDate().toISOString() : null,
-        userName: userData.name || userData.displayName || "Customer",
-        userPhone: userData.phoneNumber || userData.phone || "No phone",
-        userEmail: userData.email || "",
-      });
-    }
-
-    return wallets.sort((a, b) => b.balancePaise - a.balancePaise);
-  });
-
-  const getDebugWalletDetails = onCall(async (request) => {
-    assertDebugEnvironment();
-    await assertOrderManager(request.auth);
-    const userId = String(request.data?.userId || "").trim();
-    if (!userId) throw new HttpsError("invalid-argument", "userId is required.");
-
-    const [accountSnap, entriesSnap, userSnap] = await Promise.all([
-      db.collection("debug_wallet_accounts").doc(userId).get(),
-      db.collection("debug_wallet_entries").where("userId", "==", userId).limit(100).get(),
-      db.collection("users").doc(userId).get(),
-    ]);
-
-    const account = accountSnap.data() || {};
-    const userData = userSnap.data() || {};
-    const entries = entriesSnap.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt ? doc.data().createdAt.toDate().toISOString() : null,
-    })).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-
-    return {
-      userId,
-      balancePaise: Number(account.balancePaise) || 0,
-      lifetimeCreditPaise: Number(account.lifetimeCreditPaise) || 0,
-      lifetimeDebitPaise: Number(account.lifetimeDebitPaise) || 0,
-      userName: userData.name || userData.displayName || "Customer",
-      userPhone: userData.phoneNumber || userData.phone || "No phone",
-      entries,
-    };
-  });
-
-  const getDebugOrderAdjustments = onCall(async (request) => {
-    assertDebugEnvironment();
-    await assertOrderManager(request.auth);
-    const orderId = String(request.data?.orderId || "").trim();
-    if (!orderId) throw new HttpsError("invalid-argument", "orderId is required.");
-
-    const snapshot = await db.collection("debug_order_adjustments")
-      .where("orderId", "==", orderId)
-      .limit(50)
-      .get();
-
-    const adjustments = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt ? doc.data().createdAt.toDate().toISOString() : null,
-    })).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-
-    return adjustments;
-  });
-
   return {
     getDebugWallet,
     previewDebugOrderAdjustment,
     createDebugOrderAdjustment,
     refundWalletToBank,
-    listDebugWallets,
-    getDebugWalletDetails,
-    getDebugOrderAdjustments,
   };
 };
